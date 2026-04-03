@@ -3,10 +3,6 @@ const https = require('https');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ---------- HTML TANIMI EN ÜSTE TAŞINDI ----------
-const HTML = `<!DOCTYPE html> ... (HTML içeriğinizin tamamı aynen burada olacak) ... `;
-
-// CORS middleware
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -18,11 +14,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// Yahoo Finance proxy
+// Yahoo Finance proxy - .IS uzantısı KALDIRILDI
 function yahoo(sym, interval, range, res) {
     const urls = [
-        `https://query1.finance.yahoo.com/v8/finance/chart/${sym}.IS?interval=${interval}&range=${range}`,
-        `https://query2.finance.yahoo.com/v8/finance/chart/${sym}.IS?interval=${interval}&range=${range}`
+        `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${range}`,
+        `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${range}`
     ];
     const headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120',
@@ -50,7 +46,6 @@ function yahoo(sym, interval, range, res) {
     tryUrl(0);
 }
 
-// API route'lar
 app.get('/api/:sym', (req, res) => yahoo(req.params.sym.toUpperCase(), req.query.tf || '1d', req.query.range || '1y', res));
 app.get('/api/monthly/:sym', (req, res) => yahoo(req.params.sym.toUpperCase(), '1mo', '3y', res));
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -60,3 +55,26 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => console.log('VORTEX OK:' + PORT));
+
+const HTML = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>BIST · Vortex v4.4</title>
+    <style>
+        /* Buraya orijinal CSS'in aynısını kopyalayın (en baştaki style etiketi içindeki her şey) */
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Courier New',monospace;background:#07090f;color:#8892a4;height:100dvh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
+        /* ... diğer stiller ... */
+    </style>
+</head>
+<body>
+    <!-- Orijinal HTML body içeriği -->
+    <div id="top">...</div>
+    <!-- ... -->
+    <script>
+        // Orijinal JavaScript kodunun tamamı (fetchRecs, loadChart vb.)
+    </script>
+</body>
+</html>`;
