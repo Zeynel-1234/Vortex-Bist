@@ -1,22 +1,20 @@
-# Railway için optimize Playwright + Node.js image
+# Playwright resmi Docker image — Chromium dahil
 FROM mcr.microsoft.com/playwright:v1.40.0-jammy
 
 WORKDIR /app
 
-# Önce bağımlılıkları kopyala (cache optimizasyonu)
-COPY package*.json ./
-
-# Tüm bağımlılıkları kur
-RUN npm ci
+# Bağımlılıkları kur
+COPY package.json ./
+RUN npm install
 
 # Kaynak kodu kopyala
-COPY . .
+COPY server.js ./
 
-# TypeScript derle
-RUN npm run build
+# Playwright tarayıcılarını indir
+RUN npx playwright install chromium
 
 # Port
 EXPOSE 3000
 
 # Başlat
-CMD ["node", "dist/server.js"]
+CMD ["node", "server.js"]
