@@ -68,13 +68,19 @@ def _cache_set(sym: str, data: Dict):
 def fetch_ohlc(symbol_yf: str, period: str = "2y") -> Optional[pd.DataFrame]:
     """Yahoo Finance'den OHLCV çek. Başarısızlıkta None döner."""
     try:
+        import requests
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
         df = yf.download(
             symbol_yf,
             period=period,
             interval="1d",
             progress=False,
             auto_adjust=False,
-            threads=False
+            threads=False,
+            session=session
         )
         if df is None or df.empty or len(df) < 60:
             return None
