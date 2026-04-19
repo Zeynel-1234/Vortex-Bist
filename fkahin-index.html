@@ -1,214 +1,185 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" translate="no">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Fraktal Kâhin · BIST DNA</title>
-    <style>
-        *{box-sizing:border-box;margin:0;padding:0;}
-        body{
-            font-family:'Courier New',monospace;
-            background:#0b0e14;color:#e3e9f5;
-            min-height:100dvh;padding:16px 12px;
-        }
-        .container{max-width:600px;margin:0 auto;}
-        h1{font-size:1.8rem;font-weight:400;letter-spacing:2px;color:#a78bfa;margin-bottom:8px;}
-        .sub{font-size:0.8rem;opacity:0.7;margin-bottom:20px;border-bottom:1px solid #2a2f3a;padding-bottom:12px;}
-        .config-card{
-            background:#151a22;border-radius:16px;padding:18px 16px;
-            border:1px solid #2a3340;margin-bottom:24px;
-        }
-        label{display:block;font-size:0.75rem;opacity:0.8;margin-bottom:6px;letter-spacing:0.5px;}
-        input{
-            width:100%;background:#0b0e14;border:1px solid #2a3340;
-            color:#fff;padding:14px 16px;border-radius:40px;font-size:1rem;
-            font-family:inherit;margin-bottom:12px;
-        }
-        input:focus{outline:none;border-color:#a78bfa;}
-        button{
-            background:#a78bfa;border:none;color:#0b0e14;font-weight:bold;
-            padding:14px 20px;border-radius:40px;font-size:1.1rem;width:100%;
-            font-family:inherit;cursor:pointer;transition:0.2s;margin-top:8px;
-            border:1px solid #c4b5fd;
-        }
-        button:active{background:#c4b5fd;}
-        .status{font-size:0.8rem;margin:12px 0;color:#9ca3af;min-height:24px;}
-        .result-card{
-            background:#151a22;border-radius:20px;padding:20px 16px;
-            border-left:6px solid #a78bfa;margin-top:16px;
-        }
-        .symbol-title{font-size:2rem;font-weight:600;color:#fff;margin-bottom:4px;}
-        .dna-badge{
-            background:#1e2430;padding:8px 12px;border-radius:40px;
-            font-size:0.7rem;word-break:break-all;margin:12px 0;
-            border:1px dashed #a78bfa;color:#c4b5fd;
-        }
-        .signal-row{
-            display:flex;align-items:center;justify-content:space-between;
-            margin:18px 0 12px;
-        }
-        .signal-badge{
-            font-size:2.5rem;font-weight:800;letter-spacing:2px;
-            padding:6px 18px;border-radius:60px;background:#1e2430;
-        }
-        .AL{color:#10b981;text-shadow:0 0 8px #10b98155;}
-        .SAT{color:#f43f5e;text-shadow:0 0 8px #f43f5e55;}
-        .strength{font-size:1.2rem;}
-        .reasons{
-            background:#0b0e14;border-radius:16px;padding:16px;
-            margin-top:20px;font-size:0.8rem;line-height:1.5;
-            border:1px solid #2a3340;
-        }
-        .footer{text-align:center;margin-top:30px;opacity:0.5;font-size:0.7rem;}
-        .error{color:#f87171;}
-        .loading{opacity:0.7;}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="google" content="notranslate">
+<meta http-equiv="Content-Language" content="tr">
+<title>Fraktal Kahin · BIST DNA</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Courier New',monospace;background:#0b0e14;color:#e3e9f5;min-height:100vh;padding:16px 12px}
+.container{max-width:600px;margin:0 auto}
+h1{font-size:1.8rem;font-weight:400;letter-spacing:2px;color:#a78bfa;margin-bottom:8px}
+.sub{font-size:0.8rem;opacity:0.7;margin-bottom:20px;border-bottom:1px solid #2a2f3a;padding-bottom:12px}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #2a3340}
+.tab{flex:1;padding:10px;background:none;border:none;color:#9ca3af;font-family:inherit;font-size:0.85rem;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent}
+.tab.active{color:#a78bfa;border-bottom-color:#a78bfa}
+.panel{display:none}
+.panel.active{display:block}
+input[type=text]{width:100%;background:#0b0e14;border:1px solid #2a3340;color:#fff;padding:14px 16px;font-family:inherit;font-size:1rem;margin-bottom:12px}
+input:focus{outline:none;border-color:#a78bfa}
+button{background:#a78bfa;border:none;color:#0b0e14;font-weight:bold;padding:14px 20px;font-family:inherit;font-size:1.1rem;width:100%;cursor:pointer;margin-top:8px}
+button:active{background:#c4b5fd}
+button:disabled{opacity:0.5;cursor:not-allowed}
+.status{font-size:0.8rem;margin:12px 0;color:#9ca3af;min-height:20px}
+.status.err{color:#f87171}
+.status.ok{color:#10b981}
+.card{background:#151a22;border-radius:12px;padding:20px 16px;border-left:4px solid #a78bfa;margin-top:16px}
+.sym{font-size:1.8rem;font-weight:600;color:#fff;margin-bottom:4px}
+.dna{background:#1e2430;padding:8px 12px;border-radius:8px;font-size:0.7rem;word-break:break-all;margin:12px 0;border:1px dashed #a78bfa;color:#c4b5fd}
+.row{display:flex;align-items:center;justify-content:space-between;margin:14px 0}
+.badge{font-size:1.8rem;font-weight:800;letter-spacing:2px;padding:6px 16px;border-radius:60px;background:#1e2430}
+.AL,.GUCLU_AL,.ZAYIF_AL{color:#10b981}
+.SAT,.GUCLU_SAT,.ZAYIF_SAT{color:#f43f5e}
+.NOTR{color:#9ca3af}
+.kv{display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;border-bottom:1px solid #2a3340}
+.kv span:first-child{color:#9ca3af}
+.kv span:last-child{color:#fff;font-weight:600}
+.reasons{background:#0b0e14;border-radius:8px;padding:12px;margin-top:14px;font-size:0.8rem;line-height:1.6;border:1px solid #2a3340}
+.reasons li{margin:4px 0 4px 16px;color:#c4b5fd}
+.list-item{background:#151a22;padding:12px;border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;cursor:pointer;border-left:3px solid #2a3340}
+.list-item:active{border-left-color:#a78bfa}
+.list-item .lsym{font-weight:600;color:#fff}
+.list-item .lscore{color:#a78bfa}
+.foot{text-align:center;margin-top:30px;opacity:0.5;font-size:0.7rem}
+</style>
 </head>
 <body>
 <div class="container">
-    <h1>FRAKTAL KÂHİN</h1>
-    <div class="sub">BIST · Kuantum DNA Motoru v1.0</div>
+<h1>FRAKTAL KÂHİN</h1>
+<div class="sub">BIST · HURST · FFT · ATR · FYI · LRK</div>
 
-    <div class="config-card">
-        <label>🌐 Backend URL</label>
-        <input type="text" id="backendUrl" placeholder="https://..." value="">
-        <button id="saveUrlBtn">💾 KAYDET & BAĞLAN</button>
-        <div id="urlStatus" class="status"></div>
-    </div>
-
-    <div style="display:flex;gap:8px;">
-        <input type="text" id="symbolInput" placeholder="Hisse Kodu (örn: THYAO)" value="THYAO" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;">
-        <button id="scanBtn" style="width:auto;padding:14px 24px;">🔍 TARA</button>
-    </div>
-    <div id="scanStatus" class="status"></div>
-
-    <div id="resultArea" style="display:none;">
-        <div class="result-card">
-            <div class="symbol-title" id="symbolDisplay">----</div>
-            <div class="dna-badge" id="dnaDisplay">DNA Kodu hesaplanıyor...</div>
-            <div class="signal-row">
-                <span style="opacity:0.7;">Sinyal</span>
-                <span class="signal-badge" id="signalDisplay">--</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;">
-                <span>⚡ Güç Katsayısı</span>
-                <span class="strength" id="strengthDisplay">--</span>
-            </div>
-            <div class="reasons" id="reasonsDisplay">Gerekçeler yükleniyor...</div>
-        </div>
-    </div>
-    <div class="footer">© 2026 · Project Chimera Fractal</div>
+<div class="tabs">
+<button class="tab active" data-tab="single">TEK HİSSE</button>
+<button class="tab" data-tab="dips">DİP</button>
+<button class="tab" data-tab="peaks">TEPE</button>
 </div>
+
+<div class="panel active" id="panel-single">
+<input type="text" id="sym" placeholder="Hisse kodu (örn: THYAO)" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
+<button id="goBtn">ANALİZ ET</button>
+<div class="status" id="st1"></div>
+<div id="result"></div>
+</div>
+
+<div class="panel" id="panel-dips">
+<button id="dipsBtn">DİP HİSSELERİ TARA</button>
+<div class="status" id="st2"></div>
+<div id="dipsList"></div>
+</div>
+
+<div class="panel" id="panel-peaks">
+<button id="peaksBtn">TEPE HİSSELERİ TARA</button>
+<div class="status" id="st3"></div>
+<div id="peaksList"></div>
+</div>
+
+<div class="foot">© 2026 · Fraktal Kahin</div>
+</div>
+
 <script>
-(function(){
-    const backendInput = document.getElementById('backendUrl');
-    const saveBtn = document.getElementById('saveUrlBtn');
-    const urlStatus = document.getElementById('urlStatus');
-    const symbolInput = document.getElementById('symbolInput');
-    const scanBtn = document.getElementById('scanBtn');
-    const scanStatus = document.getElementById('scanStatus');
-    const resultArea = document.getElementById('resultArea');
-    const symbolDisplay = document.getElementById('symbolDisplay');
-    const dnaDisplay = document.getElementById('dnaDisplay');
-    const signalDisplay = document.getElementById('signalDisplay');
-    const strengthDisplay = document.getElementById('strengthDisplay');
-    const reasonsDisplay = document.getElementById('reasonsDisplay');
+const API = window.location.origin;
 
-    let BACKEND_URL = localStorage.getItem('fkahin_backend_url') || '';
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+  };
+});
 
-    function updateUrlStatus(msg, isOk){
-        urlStatus.textContent = msg;
-        urlStatus.style.color = isOk ? '#10b981' : '#f87171';
-    }
+async function callAPI(path, statusEl) {
+  statusEl.textContent = 'Yukleniyor...';
+  statusEl.className = 'status';
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    statusEl.textContent = 'Tamamlandi';
+    statusEl.className = 'status ok';
+    return data;
+  } catch (e) {
+    statusEl.textContent = 'Hata: ' + e.message;
+    statusEl.className = 'status err';
+    return null;
+  }
+}
 
-    async function testBackendConnection(url){
-        try{
-            const resp = await fetch(url, {method:'GET', signal: AbortSignal.timeout(6000)});
-            if(resp.ok){
-                const data = await resp.json();
-                if(data && data.servis){
-                    updateUrlStatus('✅ Bağlantı başarılı! Backend: '+data.servis, true);
-                    return true;
-                }
-            }
-            updateUrlStatus('⚠️ Backend yanıt verdi ama format tanınmadı', false);
-            return false;
-        }catch(e){
-            updateUrlStatus('❌ Bağlantı hatası: ' + e.message, false);
-            return false;
-        }
-    }
+function renderResult(d) {
+  if (!d || d.hata) {
+    return '<div class="card"><div class="sym">' + (d?.sembol || '?') + '</div><div style="color:#f87171;margin-top:10px">' + (d?.hata || 'Veri yok') + '</div></div>';
+  }
+  const sig = d.sinyal || 'NOTR';
+  const sci = d.bilimsel_gerekce || {};
+  const reasons = (d.tetiklenen_faktorler || []).map(r => '<li>' + r + '</li>').join('');
+  return `
+<div class="card">
+<div class="sym">${d.sembol}</div>
+<div class="dna">${d.dna_kodu || '-'}</div>
+<div class="row"><span style="opacity:0.7">SINYAL</span><span class="badge ${sig}">${sig.replace('_',' ')}</span></div>
+<div class="row"><span>Guc</span><span style="font-size:1.3rem;font-weight:600">${(d.guc*100).toFixed(0)}%</span></div>
+<div class="kv"><span>Fiyat</span><span>${d.fiyat?.toFixed(2) || '-'} TL</span></div>
+<div class="kv"><span>Gunluk Degisim</span><span>${d.gunluk_degisim > 0 ? '+' : ''}${d.gunluk_degisim?.toFixed(2)}%</span></div>
+<div class="kv"><span>Yon</span><span>${d.yön || '-'}</span></div>
+<div class="kv"><span>Hurst</span><span>${sci.hurst}</span></div>
+<div class="kv"><span>Dominant Dongu</span><span>${sci.dominant_cycle}g</span></div>
+<div class="kv"><span>Volatilite</span><span>${sci.volatilite_rejimi?.rejim || '-'}</span></div>
+<div class="kv"><span>FYI</span><span>${sci.fyi}</span></div>
+<div class="kv"><span>LRK</span><span>${sci.lrk}</span></div>
+<div class="kv"><span>Beklenen Vade</span><span>${d.beklenen_vade || '-'}</span></div>
+<div class="reasons"><strong>Tetiklenen Faktorler:</strong><ul>${reasons || '<li>Yok</li>'}</ul></div>
+<div style="margin-top:12px;font-size:0.8rem;color:#9ca3af;font-style:italic">${d.yaratici_not || ''}</div>
+</div>`;
+}
 
-    saveBtn.addEventListener('click', async function(){
-        let url = backendInput.value.trim();
-        if(!url){
-            updateUrlStatus('Lütfen bir URL girin', false);
-            return;
-        }
-        if(url.endsWith('/')) url = url.slice(0, -1);
-        backendInput.value = url;
-        updateUrlStatus('🔄 Bağlantı test ediliyor...', false);
-        const ok = await testBackendConnection(url);
-        if(ok){
-            BACKEND_URL = url;
-            localStorage.setItem('fkahin_backend_url', url);
-        }
-    });
+function renderList(items) {
+  if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
+  return items.map(d => `
+<div class="list-item" onclick="loadSym('${d.sembol}')">
+<div><div class="lsym">${d.sembol}</div><div style="font-size:0.75rem;color:#9ca3af">${d.sinyal}</div></div>
+<div class="lscore">${(d.guc*100).toFixed(0)}%</div>
+</div>`).join('');
+}
 
-    if(BACKEND_URL){
-        backendInput.value = BACKEND_URL;
-        testBackendConnection(BACKEND_URL).then(ok => { if(ok) BACKEND_URL = BACKEND_URL; });
-    }
+window.loadSym = async function(s) {
+  document.querySelector('[data-tab=single]').click();
+  document.getElementById('sym').value = s;
+  document.getElementById('goBtn').click();
+  window.scrollTo(0, 0);
+};
 
-    scanBtn.addEventListener('click', async function(){
-        const symbol = symbolInput.value.trim().toUpperCase();
-        if(!symbol){
-            scanStatus.textContent = 'Hisse kodu giriniz.';
-            return;
-        }
-        if(!BACKEND_URL){
-            scanStatus.textContent = 'Önce backend URL\'ini kaydedin.';
-            return;
-        }
+document.getElementById('goBtn').onclick = async () => {
+  const s = document.getElementById('sym').value.toUpperCase().trim();
+  if (!s) return;
+  const btn = document.getElementById('goBtn');
+  btn.disabled = true;
+  document.getElementById('result').innerHTML = '';
+  const d = await callAPI('/analyze/' + s, document.getElementById('st1'));
+  if (d) document.getElementById('result').innerHTML = renderResult(d);
+  btn.disabled = false;
+};
 
-        scanStatus.textContent = '⏳ Analiz yapılıyor...';
-        resultArea.style.display = 'none';
-        try{
-            const resp = await fetch(`${BACKEND_URL}/analyze/${symbol}`, {
-                method:'GET',
-                signal: AbortSignal.timeout(25000)
-            });
-            if(!resp.ok){
-                const txt = await resp.text();
-                throw new Error(txt || 'Sunucu hatası');
-            }
-            const data = await resp.json();
-            scanStatus.textContent = '';
-            symbolDisplay.textContent = data.sembol || symbol;
-            dnaDisplay.textContent = '🧬 DNA: ' + (data.dna_kodu || data.DNA_Kodu || 'HESAPLANAMADI');
-            const signal = data.sinyal || '';
-            signalDisplay.textContent = signal.includes('AL') ? '📈 AL' : (signal.includes('SAT') ? '📉 SAT' : signal || 'BEKLE');
-            signalDisplay.className = 'signal-badge ' + (signal.includes('AL') ? 'AL' : 'SAT');
-            strengthDisplay.textContent = (typeof data.guc === 'number') ? data.guc.toFixed(3) : '0.000';
-            let reasons = data.bilimsel_gerekce || data.Bilimsel_Gerekce || {};
-            let reasonText = '';
-            if(typeof reasons === 'object'){
-                reasonText = Object.entries(reasons).map(([k,v])=> `• ${k}: ${JSON.stringify(v)}`).join('\n');
-            }else{
-                reasonText = reasons;
-            }
-            reasonsDisplay.textContent = reasonText || 'Detaylı gerekçe bulunamadı.';
-            resultArea.style.display = 'block';
-        }catch(err){
-            scanStatus.textContent = '❌ Hata: ' + err.message;
-            console.error(err);
-        }
-    });
+document.getElementById('dipsBtn').onclick = async () => {
+  const btn = document.getElementById('dipsBtn');
+  btn.disabled = true;
+  document.getElementById('dipsList').innerHTML = '';
+  document.getElementById('st2').textContent = 'Tarama basladi (1-3 dk)...';
+  const d = await callAPI('/dips?limit=100&min_score=0.4', document.getElementById('st2'));
+  if (d) document.getElementById('dipsList').innerHTML = renderList(d.hisseler);
+  btn.disabled = false;
+};
 
-    symbolInput.addEventListener('input', function(e){
-        this.value = this.value.toUpperCase();
-    });
-})();
+document.getElementById('peaksBtn').onclick = async () => {
+  const btn = document.getElementById('peaksBtn');
+  btn.disabled = true;
+  document.getElementById('peaksList').innerHTML = '';
+  document.getElementById('st3').textContent = 'Tarama basladi (1-3 dk)...';
+  const d = await callAPI('/peaks?limit=100&min_score=0.4', document.getElementById('st3'));
+  if (d) document.getElementById('peaksList').innerHTML = renderList(d.hisseler);
+  btn.disabled = false;
+};
 </script>
 </body>
 </html>
