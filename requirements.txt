@@ -1,2 +1,9 @@
-fastapi
-uvicorn[standard]
+ ```
+   fastapi
+   uvicorn[standard]
+   numpy
+   pandas
+   yfinance
+   scipy
+   requests
+   ```
