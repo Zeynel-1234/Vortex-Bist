@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import os
 import time
 import math
 from typing import Dict, List, Optional
@@ -123,7 +125,11 @@ def analyze_one(symbol: str, use_cache: bool = True) -> Dict:
 # ═══════════════════════════════════════════════════════════
 
 @app.get("/")
-def root():
+async def root():
+    # Önce frontend HTML dosyasını sunmayı dene
+    if os.path.exists("fkahin-index.html"):
+        return FileResponse("fkahin-index.html")
+    # Dosya yoksa eski API bilgisini döndür
     return {
         "servis": "Fraktal Kahin v1.0",
         "durum": "OK",
