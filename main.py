@@ -235,7 +235,3 @@ def top_peaks(limit: int = Query(20, ge=5, le=100), min_score: float = Query(0.5
 # Railway için: PORT env var
 # ═══════════════════════════════════════════════════════════
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
