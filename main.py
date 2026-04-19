@@ -22,6 +22,21 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# --- CACHE MEKANİZMALARI (Adım 2.2) ---
+CACHE: Dict[str, Dict] = {}
+SCAN_CACHE: Optional[Dict] = None
+CACHE_TTL = 900  # 15 dakika
+SCAN_TTL = 1800  # 30 dakika
+
+def _cached(sym: str) -> Optional[Dict]:
+    entry = CACHE.get(sym)
+    if entry and (time.time() - entry['t']) < CACHE_TTL:
+        return entry['data']
+    return None
+
+def _cache_set(sym: str, data: Dict):
+    CACHE[sym] = {'t': time.time(), 'data': data}
+
 # --- TEMEL ROUTE'LAR (TEST İÇİN) ---
 @app.get("/")
 def root():
