@@ -185,12 +185,12 @@
             const data = await resp.json();
             scanStatus.textContent = '';
             symbolDisplay.textContent = data.sembol || symbol;
-            dnaDisplay.textContent = '🧬 DNA: ' + (data.dna_kodu || 'HESAPLANAMADI');
+            dnaDisplay.textContent = '🧬 DNA: ' + (data.dna_kodu || data.DNA_Kodu || 'HESAPLANAMADI');
             const signal = data.sinyal || '';
             signalDisplay.textContent = signal.includes('AL') ? '📈 AL' : (signal.includes('SAT') ? '📉 SAT' : signal || 'BEKLE');
             signalDisplay.className = 'signal-badge ' + (signal.includes('AL') ? 'AL' : 'SAT');
             strengthDisplay.textContent = (typeof data.guc === 'number') ? data.guc.toFixed(3) : '0.000';
-            let reasons = data.bilimsel_gerekce || {};
+            let reasons = data.bilimsel_gerekce || data.Bilimsel_Gerekce || {};
             let reasonText = '';
             if(typeof reasons === 'object'){
                 reasonText = Object.entries(reasons).map(([k,v])=> `• ${k}: ${JSON.stringify(v)}`).join('\n');
