@@ -241,3 +241,91 @@ def peaks_endpoint(
 @app.get("/_debug_routes")
 def debug_routes():
     return {"routes": [r.path for r in app.routes]}
+
+
+# ═══════════════════════════════════════════════════════════
+# BACKTEST ENDPOINT'LERI — FAZ 1
+# ═══════════════════════════════════════════════════════════
+from backtest import backtest_symbol
+
+BACKTEST_CACHE: Dict[str, Dict] = {}
+BACKTEST_TTL = 86400  # 24 saat (backtest sonuçları yavaş değişir)
+
+
+@app.get("/backtest/{symbol}")
+def backtest_endpoint(symbol: str, period: str = Query("2y"), force: bool = Query(False)):
+    """Tek bir hissenin geçmiş performansını ölçer."""
+    symbol = symbol.upper().replace('.IS', '').strip()
+    if not symbol.isalnum() or len(symbol) > 8:
+        raise HTTPException(400, "Geçersiz sembol formatı")
+    
+    cache_key = f"{symbol}_{period}"
+    if not force and cache_key in BACKTEST_CACHE:
+        entry = BACKTEST_CACHE[cache_key]
+        if (time.time() - entry['t']) < BACKTEST_TTL:
+            return entry['data']
+    
+    df = fetch_ohlc(symbol, period=period)
+    if df is None:
+        return {"sembol": symbol, "hata": "Veri çekilemedi", "yeterli_veri": False}
+    
+    result = backtest_symbol(df, symbol)
+    result = _json_safe(result)
+    BACKTEST_CACHE[cache_key] = {'t': time.time(), 'data': result}
+    return result
+
+
+@app.get("/backtest_all")
+def backtest_all_endpoint(
+    limit: int = Query(50, ge=5, le=200),
+    min_quality: int = Query(0, ge=0, le=100),
+    force: bool = Query(False)
+):
+    """Çoklu hisse backtest — kalite skoruna göre sıralı."""
+    cache_key = f"all_{limit}"
+    if not force and cache_key in BACKTEST_CACHE:
+        entry = BACKTEST_CACHE[cache_key]
+        if (time.time() - entry['t']) < BACKTEST_TTL:
+            data = entry['data']
+            filtered = [r for r in data['sonuclar'] if r.get('kalite_skoru', 0) >= min_quality]
+            return {**data, "filtrelenmis": len(filtered), "sonuclar": filtered}
+    
+    syms = get_all()[:limit]
+    results = []
+    
+    def worker(s):
+        df = fetch_ohlc(s, period="2y")
+        if df is None:
+            return None
+        try:
+            return backtest_symbol(df, s)
+        except Exception as e:
+            return {"sembol": s, "hata": str(e)[:80], "yeterli_veri": False}
+    
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futures = {ex.submit(worker, s): s for s in syms}
+        for fut in as_completed(futures):
+            try:
+                r = fut.result(timeout=120)
+                if r and r.get('yeterli_veri'):
+                    results.append(_json_safe(r))
+            except Exception:
+                continue
+    
+    # Kalite skoruna göre azalan
+    results.sort(key=lambda x: x.get('kalite_skoru', 0), reverse=True)
+    
+    payload = {
+        "tarama_zamani": pd.Timestamp.utcnow().isoformat(),
+        "tarananlar": len(syms),
+        "basarili": len(results),
+        "yuksek_kalite": len([r for r in results if r.get('kalite_skoru', 0) >= 70]),
+        "orta_kalite": len([r for r in results if 50 <= r.get('kalite_skoru', 0) < 70]),
+        "sonuclar": results
+    }
+    BACKTEST_CACHE[cache_key] = {'t': time.time(), 'data': payload}
+    
+    if min_quality > 0:
+        filtered = [r for r in payload['sonuclar'] if r.get('kalite_skoru', 0) >= min_quality]
+        return {**payload, "filtrelenmis": len(filtered), "sonuclar": filtered}
+    return payload
