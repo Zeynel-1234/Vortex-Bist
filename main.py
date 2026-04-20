@@ -330,3 +330,15 @@ def backtest_all_endpoint(
         filtered = [r for r in payload['sonuclar'] if r.get('kalite_skoru', 0) >= min_quality]
         return {**payload, "filtrelenmis": len(filtered), "sonuclar": filtered}
     return payload
+# ═══════════════════════════════════════════════════════════
+# FRONTEND HTML SERVISI
+# ═══════════════════════════════════════════════════════════
+from fastapi.responses import FileResponse, HTMLResponse
+import os as _os
+
+@app.get("/app", response_class=HTMLResponse)
+def serve_app():
+    html_path = _os.path.join(_os.path.dirname(__file__), "fkahin-index.html")
+    if _os.path.exists(html_path):
+        return FileResponse(html_path, media_type="text/html; charset=utf-8")
+    return HTMLResponse("<h1>fkahin-index.html bulunamadi</h1>", status_code=404)
