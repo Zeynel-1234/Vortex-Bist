@@ -135,15 +135,15 @@ async def root():
         "durum": "OK",
         "cache_boyut": len(CACHE),
        "endpoints": [
-    "/app",
-    "/analyze/{symbol}",
-    "/scan",
-    "/dips",
-    "/peaks",
-    "/symbols",
-    "/backtest/{symbol}",
-    "/backtest_all",
-    "/_debug_routes"
+           "/app",
+           "/analyze/{symbol}",
+           "/scan",
+           "/dips",
+           "/peaks",
+           "/symbols",
+           "/backtest/{symbol}",
+           "/backtest_all",
+           "/_debug_routes"
 ]
     }
 
