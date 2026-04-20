@@ -134,14 +134,17 @@ async def root():
         "servis": "Fraktal Kahin v1.0",
         "durum": "OK",
         "cache_boyut": len(CACHE),
-        "endpoints": [
-            "/analyze/{symbol}",
-            "/scan",
-            "/dips",
-            "/peaks",
-            "/symbols",
-            "/_debug_routes"
-        ]
+       "endpoints": [
+    "/app",
+    "/analyze/{symbol}",
+    "/scan",
+    "/dips",
+    "/peaks",
+    "/symbols",
+    "/backtest/{symbol}",
+    "/backtest_all",
+    "/_debug_routes"
+]
     }
 
 
