@@ -361,3 +361,14 @@ def nvs_test():
     }
     test_m = test_w.copy()
     return _analyze_nvs('HUBVC', test_d, test_w, test_m)
+# ═══════════════════════════════════════════════════════════
+# FAZ 2 TEST — TradingView Scanner bağlantı testi
+# ═══════════════════════════════════════════════════════════
+from tv_scanner import fetch_tv_data, fetch_all_timeframes
+
+@app.get("/tv_test/{symbol}")
+def tv_test(symbol: str):
+    """TradingView'den hisse verisi çek, ham haliyle döndür."""
+    symbol = symbol.upper().replace('.IS', '').strip()
+    result = fetch_all_timeframes(symbol)
+    return _json_safe(result)
