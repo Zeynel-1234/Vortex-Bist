@@ -342,3 +342,22 @@ def serve_app():
     if _os.path.exists(html_path):
         return FileResponse(html_path, media_type="text/html; charset=utf-8")
     return HTMLResponse("<h1>fkahin-index.html bulunamadi</h1>", status_code=404)
+    # ═══════════════════════════════════════════════════════════
+# FAZ 1 TEST — NVS hesaplama doğrulama
+# ═══════════════════════════════════════════════════════════
+from nvs import analyze_nvs as _analyze_nvs
+
+@app.get("/nvs_test")
+def nvs_test():
+    """HUBVC'nin b-165'teki ekran değerleriyle test"""
+    test_d = {
+        'rec': 0.291, 'rsi': 48.1, 'stoch': 33.7, 'macd': 0.0108,
+        'ema20': 1, 'ema50': -1, 'ema200': 1,
+        'vol': 2.0, 'vol_avg': 1.0, 'adx': 35.0
+    }
+    test_w = {
+        'rec': 0.288, 'rsi': 52.9, 'stoch': 33.7, 'macd': 0.0108,
+        'ema20': 1, 'ema50': 1
+    }
+    test_m = test_w.copy()
+    return _analyze_nvs('HUBVC', test_d, test_w, test_m)
