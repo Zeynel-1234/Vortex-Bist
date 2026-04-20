@@ -12,8 +12,8 @@ body{font-family:'Courier New',monospace;background:#0b0e14;color:#e3e9f5;min-he
 .container{max-width:600px;margin:0 auto}
 h1{font-size:1.8rem;font-weight:400;letter-spacing:2px;color:#a78bfa;margin-bottom:8px}
 .sub{font-size:0.8rem;opacity:0.7;margin-bottom:20px;border-bottom:1px solid #2a2f3a;padding-bottom:12px}
-.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #2a3340}
-.tab{flex:1;padding:10px;background:none;border:none;color:#9ca3af;font-family:inherit;font-size:0.85rem;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #2a3340;flex-wrap:wrap}
+.tab{flex:1;min-width:80px;padding:10px 4px;background:none;border:none;color:#9ca3af;font-family:inherit;font-size:0.8rem;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent}
 .tab.active{color:#a78bfa;border-bottom-color:#a78bfa}
 .panel{display:none}
 .panel.active{display:block}
@@ -29,7 +29,7 @@ button:disabled{opacity:0.5;cursor:not-allowed}
 .sym{font-size:1.8rem;font-weight:600;color:#fff;margin-bottom:4px}
 .dna{background:#1e2430;padding:8px 12px;border-radius:8px;font-size:0.7rem;word-break:break-all;margin:12px 0;border:1px dashed #a78bfa;color:#c4b5fd}
 .row{display:flex;align-items:center;justify-content:space-between;margin:14px 0}
-.badge{font-size:1.8rem;font-weight:800;letter-spacing:2px;padding:6px 16px;border-radius:60px;background:#1e2430}
+.badge{font-size:1.4rem;font-weight:800;letter-spacing:2px;padding:6px 16px;border-radius:60px;background:#1e2430}
 .AL,.GUCLU_AL,.ZAYIF_AL{color:#10b981}
 .SAT,.GUCLU_SAT,.ZAYIF_SAT{color:#f43f5e}
 .NOTR{color:#9ca3af}
@@ -47,43 +47,44 @@ button:disabled{opacity:0.5;cursor:not-allowed}
 </head>
 <body>
 <div class="container">
-<h1>FRAKTAL KÂHİN</h1>
+<h1>FRAKTAL KAHIN</h1>
 <div class="sub">BIST · HURST · FFT · ATR · FYI · LRK</div>
 
 <div class="tabs">
-<button class="tab active" data-tab="single">TEK HİSSE</button>
-<button class="tab" data-tab="dips">DİP</button>
-<button class="tab" data-tab="peaks">TEPE</button>
+<button class="tab active" data-tab="single">TEK HISSE</button>
+<button class="tab" data-tab="dips">DIP</button>
 <button class="tab" data-tab="peaks">TEPE</button>
 <button class="tab" data-tab="bt">BACKTEST</button>
 </div>
 
 <div class="panel active" id="panel-single">
-<input type="text" id="sym" placeholder="Hisse kodu (örn: THYAO)" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
-<button id="goBtn">ANALİZ ET</button>
+<input type="text" id="sym" placeholder="Hisse kodu" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
+<button id="goBtn">ANALIZ ET</button>
 <div class="status" id="st1"></div>
 <div id="result"></div>
 </div>
 
 <div class="panel" id="panel-dips">
-<button id="dipsBtn">DİP HİSSELERİ TARA</button>
+<button id="dipsBtn">DIP HISSELERI TARA</button>
 <div class="status" id="st2"></div>
 <div id="dipsList"></div>
 </div>
 
 <div class="panel" id="panel-peaks">
-<button id="peaksBtn">TEPE HİSSELERİ TARA</button>
+<button id="peaksBtn">TEPE HISSELERI TARA</button>
 <div class="status" id="st3"></div>
 <div id="peaksList"></div>
+</div>
+
 <div class="panel" id="panel-bt">
-<input type="text" id="btSym" placeholder="Hisse kodu (örn: THYAO)" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
+<input type="text" id="btSym" placeholder="Hisse kodu" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
 <button id="btBtn">BU HISSEYI TEST ET</button>
 <button id="btAllBtn" style="margin-top:6px;background:#1e2430;color:#a78bfa;border:1px solid #a78bfa">EN GUVENILIR 50 HISSE</button>
 <div class="status" id="st4"></div>
 <div id="btResult"></div>
 </div>
 
-<div class="foot">© 2026 · Fraktal Kahin</div>
+<div class="foot">2026 · Fraktal Kahin</div>
 </div>
 
 <script>
@@ -116,45 +117,89 @@ async function callAPI(path, statusEl) {
 }
 
 function renderResult(d) {
-  if (!d || d.hata) {
-    return '<div class="card"><div class="sym">' + (d?.sembol || '?') + '</div><div style="color:#f87171;margin-top:10px">' + (d?.hata || 'Veri yok') + '</div></div>';
-  }
+  if (!d || d.hata) return '<div class="card"><div class="sym">'+(d?.sembol||'?')+'</div><div style="color:#f87171;margin-top:10px">'+(d?.hata||'Veri yok')+'</div></div>';
   const sig = d.sinyal || 'NOTR';
   const sci = d.bilimsel_gerekce || {};
-  const reasons = (d.tetiklenen_faktorler || []).map(r => '<li>' + r + '</li>').join('');
-  return `
-<div class="card">
-<div class="sym">${d.sembol}</div>
-<div class="dna">${d.dna_kodu || '-'}</div>
-<div class="row"><span style="opacity:0.7">SINYAL</span><span class="badge ${sig}">${sig.replace('_',' ')}</span></div>
-<div class="row"><span>Guc</span><span style="font-size:1.3rem;font-weight:600">${(d.guc*100).toFixed(0)}%</span></div>
-<div class="kv"><span>Fiyat</span><span>${d.fiyat?.toFixed(2) || '-'} TL</span></div>
-<div class="kv"><span>Gunluk Degisim</span><span>${d.gunluk_degisim > 0 ? '+' : ''}${d.gunluk_degisim?.toFixed(2)}%</span></div>
-<div class="kv"><span>Yon</span><span>${d.yön || '-'}</span></div>
-<div class="kv"><span>Hurst</span><span>${sci.hurst}</span></div>
-<div class="kv"><span>Dominant Dongu</span><span>${sci.dominant_cycle}g</span></div>
-<div class="kv"><span>Volatilite</span><span>${sci.volatilite_rejimi?.rejim || '-'}</span></div>
-<div class="kv"><span>FYI</span><span>${sci.fyi}</span></div>
-<div class="kv"><span>LRK</span><span>${sci.lrk}</span></div>
-<div class="kv"><span>Beklenen Vade</span><span>${d.beklenen_vade || '-'}</span></div>
-<div class="reasons"><strong>Tetiklenen Faktorler:</strong><ul>${reasons || '<li>Yok</li>'}</ul></div>
-<div style="margin-top:12px;font-size:0.8rem;color:#9ca3af;font-style:italic">${d.yaratici_not || ''}</div>
-</div>`;
+  const reasons = (d.tetiklenen_faktorler || []).map(r => '<li>'+r+'</li>').join('');
+  return '<div class="card"><div class="sym">'+d.sembol+'</div>'+
+    '<div class="dna">'+(d.dna_kodu||'-')+'</div>'+
+    '<div class="row"><span style="opacity:0.7">SINYAL</span><span class="badge '+sig+'">'+sig.replace('_',' ')+'</span></div>'+
+    '<div class="row"><span>Guc</span><span style="font-size:1.3rem;font-weight:600">'+(d.guc*100).toFixed(0)+'%</span></div>'+
+    '<div class="kv"><span>Fiyat</span><span>'+(d.fiyat?.toFixed(2)||'-')+' TL</span></div>'+
+    '<div class="kv"><span>Gunluk Degisim</span><span>'+(d.gunluk_degisim>0?'+':'')+(d.gunluk_degisim?.toFixed(2))+'%</span></div>'+
+    '<div class="kv"><span>Yon</span><span>'+(d['yön']||'-')+'</span></div>'+
+    '<div class="kv"><span>Hurst</span><span>'+sci.hurst+'</span></div>'+
+    '<div class="kv"><span>Dominant Dongu</span><span>'+sci.dominant_cycle+'g</span></div>'+
+    '<div class="kv"><span>Volatilite</span><span>'+(sci.volatilite_rejimi?.rejim||'-')+'</span></div>'+
+    '<div class="kv"><span>FYI</span><span>'+sci.fyi+'</span></div>'+
+    '<div class="kv"><span>LRK</span><span>'+sci.lrk+'</span></div>'+
+    '<div class="kv"><span>Beklenen Vade</span><span>'+(d.beklenen_vade||'-')+'</span></div>'+
+    '<div class="reasons"><strong>Tetiklenen Faktorler:</strong><ul>'+(reasons||'<li>Yok</li>')+'</ul></div>'+
+    '<div style="margin-top:12px;font-size:0.8rem;color:#9ca3af;font-style:italic">'+(d.yaratici_not||'')+'</div>'+
+    '</div>';
 }
 
 function renderList(items) {
   if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
-  return items.map(d => `
-<div class="list-item" onclick="loadSym('${d.sembol}')">
-<div><div class="lsym">${d.sembol}</div><div style="font-size:0.75rem;color:#9ca3af">${d.sinyal}</div></div>
-<div class="lscore">${(d.guc*100).toFixed(0)}%</div>
-</div>`).join('');
+  return items.map(d => '<div class="list-item" onclick="loadSym(\''+d.sembol+'\')">'+
+    '<div><div class="lsym">'+d.sembol+'</div><div style="font-size:0.75rem;color:#9ca3af">'+d.sinyal+'</div></div>'+
+    '<div class="lscore">'+(d.guc*100).toFixed(0)+'%</div></div>').join('');
+}
+
+function renderBacktest(d) {
+  if (!d || d.hata) return '<div class="card"><div class="sym">'+(d?.sembol||'?')+'</div><div style="color:#f87171;margin-top:10px">'+(d?.hata||'Veri yok')+'</div></div>';
+  if (!d.yeterli_veri) return '<div class="card" style="border-left-color:#f87171"><div class="sym">'+d.sembol+'</div><div style="color:#f87171;margin-top:10px">Yeterli gecmis veri yok</div></div>';
+  if (d.toplam_sinyal === 0) return '<div class="card"><div class="sym">'+d.sembol+'</div><div style="color:#9ca3af;margin-top:10px">Test periyodunda guclu sinyal yok</div></div>';
+  const m = d.metrikler || {};
+  const m21 = m['21g']||{}, m42 = m['42g']||{}, m63 = m['63g']||{};
+  const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
+  return '<div class="card" style="border-left-color:'+renk+'"><div class="sym">'+d.sembol+'</div>'+
+    '<div class="row"><span style="opacity:0.7">GUVENILIRLIK</span><span class="badge" style="color:'+renk+';font-size:1.1rem">'+d.guvenilirlik+'</span></div>'+
+    '<div class="row"><span>Kalite Skoru</span><span style="font-size:1.5rem;font-weight:600;color:'+renk+'">'+d.kalite_skoru+'/100</span></div>'+
+    '<div class="kv"><span>Test Periyodu</span><span>'+d.test_periyodu_bar+' bar</span></div>'+
+    '<div class="kv"><span>Uretilen Sinyal</span><span>'+d.toplam_sinyal+'</span></div>'+
+    '<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem;letter-spacing:1px">63 GUNLUK PERFORMANS</div>'+
+    '<div class="kv"><span>Win Rate</span><span>'+(m63.win_rate||0)+'%</span></div>'+
+    '<div class="kv"><span>+5% Kazanma</span><span>'+(m63.precision_5pct||0)+'%</span></div>'+
+    '<div class="kv"><span>+15% Kazanma</span><span>'+(m63.precision_15pct||0)+'%</span></div>'+
+    '<div class="kv"><span>Ortalama Getiri</span><span>'+(m63.ortalama_getiri||0)+'%</span></div>'+
+    '<div class="kv"><span>En Iyi/Kotu</span><span>'+(m63.best_signal||0)+'% / '+(m63.worst_signal||0)+'%</span></div>'+
+    '<div class="kv"><span>Max Drawdown</span><span style="color:#f87171">'+(m63.max_drawdown||0)+'%</span></div>'+
+    '<div class="kv"><span>Calmar Orani</span><span>'+(m63.calmar||0)+'</span></div>'+
+    '<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem">21/42/63 GUN KARSILASTIRMA</div>'+
+    '<div class="kv"><span>21g Win</span><span>'+(m21.win_rate||0)+'%</span></div>'+
+    '<div class="kv"><span>42g Win</span><span>'+(m42.win_rate||0)+'%</span></div>'+
+    '<div class="kv"><span>63g Win</span><span>'+(m63.win_rate||0)+'%</span></div>'+
+    '<div class="reasons"><strong>YORUM:</strong><br>'+
+    (d.guvenilirlik === 'YUKSEK' ? 'Bu hissede sistem tutarli sonuclar veriyor.' : '')+
+    (d.guvenilirlik === 'ORTA' ? 'Karma sonuclar. Sinyalleri baska teyitlerle birlikte degerlendir.' : '')+
+    (d.guvenilirlik === 'DUSUK' ? 'Sistem bu hissede zayif. Sinyallere temkinli yaklas.' : '')+
+    (d.guvenilirlik === 'GUVENILMEZ' ? 'Bu hisse icin sistem calismiyor. Sinyallerini kullanma.' : '')+
+    '</div></div>';
+}
+
+function renderBTList(items) {
+  if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
+  return items.map(d => {
+    const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
+    const m63 = d.metrikler?.['63g'] || {};
+    return '<div class="list-item" style="border-left-color:'+renk+'" onclick="loadBT(\''+d.sembol+'\')">'+
+      '<div><div class="lsym">'+d.sembol+'</div><div style="font-size:0.7rem;color:#9ca3af">'+d.guvenilirlik+' '+d.toplam_sinyal+' sinyal '+(m63.win_rate||0)+'% win</div></div>'+
+      '<div class="lscore" style="color:'+renk+'">'+d.kalite_skoru+'</div></div>';
+  }).join('');
 }
 
 window.loadSym = async function(s) {
   document.querySelector('[data-tab=single]').click();
   document.getElementById('sym').value = s;
   document.getElementById('goBtn').click();
+  window.scrollTo(0, 0);
+};
+
+window.loadBT = async function(s) {
+  document.querySelector('[data-tab=bt]').click();
+  document.getElementById('btSym').value = s;
+  document.getElementById('btBtn').click();
   window.scrollTo(0, 0);
 };
 
@@ -188,69 +233,6 @@ document.getElementById('peaksBtn').onclick = async () => {
   if (d) document.getElementById('peaksList').innerHTML = renderList(d.hisseler);
   btn.disabled = false;
 };
-function renderBacktest(d) {
-  if (!d || d.hata) return '<div class="card"><div class="sym">'+(d?.sembol||'?')+'</div><div style="color:#f87171;margin-top:10px">'+(d?.hata||'Veri yok')+'</div></div>';
-  if (!d.yeterli_veri) return '<div class="card" style="border-left-color:#f87171"><div class="sym">'+d.sembol+'</div><div style="color:#f87171;margin-top:10px">Yeterli geçmiş veri yok</div></div>';
-  if (d.toplam_sinyal === 0) return '<div class="card"><div class="sym">'+d.sembol+'</div><div style="color:#9ca3af;margin-top:10px">Test periyodunda güçlü sinyal yok</div></div>';
-  
-  const m = d.metrikler || {};
-  const m21 = m['21g'] || {}, m42 = m['42g'] || {}, m63 = m['63g'] || {};
-  const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
-  
-  return `
-<div class="card" style="border-left-color:${renk}">
-<div class="sym">${d.sembol}</div>
-<div class="row"><span style="opacity:0.7">GUVENILIRLIK</span><span class="badge" style="color:${renk};font-size:1.2rem">${d.guvenilirlik}</span></div>
-<div class="row"><span>Kalite Skoru</span><span style="font-size:1.5rem;font-weight:600;color:${renk}">${d.kalite_skoru}/100</span></div>
-<div class="kv"><span>Test Periyodu</span><span>${d.test_periyodu_bar} bar</span></div>
-<div class="kv"><span>Uretilen Sinyal</span><span>${d.toplam_sinyal}</span></div>
-
-<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem;letter-spacing:1px">63 GUNLUK PERFORMANS (3 ay)</div>
-<div class="kv"><span>Win Rate</span><span>${m63.win_rate || 0}%</span></div>
-<div class="kv"><span>+5% Kazanma Orani</span><span>${m63.precision_5pct || 0}%</span></div>
-<div class="kv"><span>+15% Kazanma Orani</span><span>${m63.precision_15pct || 0}%</span></div>
-<div class="kv"><span>Ortalama Getiri</span><span>${m63.ortalama_getiri || 0}%</span></div>
-<div class="kv"><span>En Iyi / En Kotu</span><span>${m63.best_signal || 0}% / ${m63.worst_signal || 0}%</span></div>
-<div class="kv"><span>Max Drawdown</span><span style="color:#f87171">${m63.max_drawdown || 0}%</span></div>
-<div class="kv"><span>Calmar Orani</span><span>${m63.calmar || 0}</span></div>
-
-<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem;letter-spacing:1px">21 vs 42 vs 63 GUN KARSILASTIRMASI</div>
-<div class="kv"><span>21g Win Rate</span><span>${m21.win_rate || 0}%</span></div>
-<div class="kv"><span>42g Win Rate</span><span>${m42.win_rate || 0}%</span></div>
-<div class="kv"><span>63g Win Rate</span><span>${m63.win_rate || 0}%</span></div>
-
-<div class="reasons">
-<strong>YORUM:</strong><br>
-${d.guvenilirlik === 'YUKSEK' ? '✓ Bu hissede sistem tutarlı sonuçlar veriyor. Sinyallerine güvenilebilir.' : ''}
-${d.guvenilirlik === 'ORTA' ? '○ Karma sonuçlar. Sinyalleri başka teyitlerle birlikte değerlendir.' : ''}
-${d.guvenilirlik === 'DUSUK' ? '⚠ Sistem bu hissede zayıf. Sinyallere temkinli yaklaş.' : ''}
-${d.guvenilirlik === 'GUVENILMEZ' ? '✗ Bu hisse için sistem çalışmıyor. Sinyallerini kullanma.' : ''}
-</div>
-</div>`;
-}
-
-function renderBacktestList(items) {
-  if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
-  return items.map(d => {
-    const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
-    const m63 = d.metrikler?.['63g'] || {};
-    return `
-<div class="list-item" style="border-left-color:${renk}" onclick="loadBT('${d.sembol}')">
-<div>
-<div class="lsym">${d.sembol}</div>
-<div style="font-size:0.7rem;color:#9ca3af">${d.guvenilirlik} · ${d.toplam_sinyal} sinyal · ${m63.win_rate || 0}% win</div>
-</div>
-<div class="lscore" style="color:${renk}">${d.kalite_skoru}</div>
-</div>`;
-  }).join('');
-}
-
-window.loadBT = async function(s) {
-  document.querySelector('[data-tab=bt]').click();
-  document.getElementById('btSym').value = s;
-  document.getElementById('btBtn').click();
-  window.scrollTo(0, 0);
-};
 
 document.getElementById('btBtn').onclick = async () => {
   const s = document.getElementById('btSym').value.toUpperCase().trim();
@@ -272,7 +254,7 @@ document.getElementById('btAllBtn').onclick = async () => {
   document.getElementById('st4').textContent = 'Toplu backtest (5-10 dk)...';
   document.getElementById('st4').className = 'status';
   const d = await callAPI('/backtest_all?limit=50&min_quality=30', document.getElementById('st4'));
-  if (d) document.getElementById('btResult').innerHTML = '<div style="margin:12px 0;color:#a78bfa">Yuksek: '+d.yuksek_kalite+' · Orta: '+d.orta_kalite+' · Toplam: '+d.basarili+'</div>' + renderBacktestList(d.sonuclar);
+  if (d) document.getElementById('btResult').innerHTML = '<div style="margin:12px 0;color:#a78bfa">Yuksek: '+d.yuksek_kalite+' Orta: '+d.orta_kalite+' Toplam: '+d.basarili+'</div>' + renderBTList(d.sonuclar);
   btn.disabled = false;
 };
 </script>
