@@ -241,8 +241,6 @@ def peaks_endpoint(
 @app.get("/_debug_routes")
 def debug_routes():
     return {"routes": [r.path for r in app.routes]}
-
-
 # ═══════════════════════════════════════════════════════════
 # BACKTEST ENDPOINT'LERI — FAZ 1
 # ═══════════════════════════════════════════════════════════
