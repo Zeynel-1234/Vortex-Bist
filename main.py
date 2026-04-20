@@ -372,3 +372,95 @@ def tv_test(symbol: str):
     symbol = symbol.upper().replace('.IS', '').strip()
     result = fetch_all_timeframes(symbol)
     return _json_safe(result)
+# ═══════════════════════════════════════════════════════════
+# FAZ 3 — NVS Endpoint (TradingView + NVS hesaplama birleşik)
+# ═══════════════════════════════════════════════════════════
+from nvs import analyze_nvs
+
+NVS_CACHE: Dict[str, Dict] = {}
+NVS_TTL = 300  # 5 dakika cache
+
+
+@app.get("/nvs/{symbol}")
+def nvs_endpoint(symbol: str, force: bool = Query(False)):
+    """
+    Tek hisse için NVS hesaplaması.
+    TradingView'den veriyi çeker, nvs.py ile hesaplar, sonucu döndürür.
+    """
+    symbol = symbol.upper().replace('.IS', '').strip()
+    if not symbol.isalnum() or len(symbol) > 8:
+        raise HTTPException(400, "Geçersiz sembol formatı")
+    
+    # Cache kontrolü
+    if not force and symbol in NVS_CACHE:
+        entry = NVS_CACHE[symbol]
+        if (time.time() - entry['t']) < NVS_TTL:
+            return entry['data']
+    
+    # TradingView'den 3 zaman diliminde veri çek
+    tv = fetch_all_timeframes(symbol)
+    
+    d_raw = tv.get('d') or {}
+    w_raw = tv.get('w') or {}
+    m_raw = tv.get('m') or {}
+    
+    # Hata kontrolü
+    if d_raw.get('_error'):
+        return {
+            "sembol": symbol,
+            "hata": f"TradingView: {d_raw['_error']}",
+            "nvs": None
+        }
+    
+    # nvs.py'nin beklediği formata uyarla
+    d_data = {
+        'rec': d_raw.get('rec'),
+        'rsi': d_raw.get('rsi'),
+        'stoch': d_raw.get('stoch'),
+        'macd': d_raw.get('macd'),  # macd_hist aslında
+        'ema20': d_raw.get('ema20'),
+        'ema50': d_raw.get('ema50'),
+        'ema200': d_raw.get('ema200'),
+        'vol': d_raw.get('vol'),
+        'vol_avg': d_raw.get('vol_avg'),
+        'adx': d_raw.get('adx'),
+    }
+    
+    w_data = {
+        'rec': w_raw.get('rec'),
+        'rsi': w_raw.get('rsi'),
+        'stoch': w_raw.get('stoch'),
+        'macd': w_raw.get('macd'),
+        'ema20': w_raw.get('ema20'),
+        'ema50': w_raw.get('ema50'),
+    }
+    
+    m_data = {
+        'rec': m_raw.get('rec'),
+        'rsi': m_raw.get('rsi'),
+        'stoch': m_raw.get('stoch'),
+        'macd': m_raw.get('macd'),
+        'ema20': m_raw.get('ema20'),
+        'ema50': m_raw.get('ema50'),
+    }
+    
+    # NVS hesapla
+    result = analyze_nvs(symbol, d_data, w_data, m_data)
+    
+    # Ek bilgiler ekle
+    result['fiyat'] = d_raw.get('_close') or d_raw.get('close')
+    result['gunluk_degisim'] = d_raw.get('change')
+    result['haftalik_degisim'] = d_raw.get('change|1w') or d_raw.get('change|1W')
+    result['aylik_degisim'] = d_raw.get('change|1m') or d_raw.get('change|1M')
+    result['ham_indikatorler'] = {
+        'daily': d_data,
+        'weekly': w_data,
+        'monthly': m_data,
+    }
+    result['_cached_at'] = int(time.time())
+    
+    # Cache'e kaydet
+    result = _json_safe(result)
+    NVS_CACHE[symbol] = {'t': time.time(), 'data': result}
+    
+    return result
