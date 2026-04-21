@@ -1,25 +1,25 @@
 """
 ═══════════════════════════════════════════════════════════════
-TradingView Scanner v4 — Multi-Timeframe Tek Query
+TradingView Scanner v5 — Multi-Timeframe + Bulk Fetch
 ───────────────────────────────────────────────────────────────
-v3 BUG: .set_property('interval', ...) TradingView Scanner API'sinde
-        işe yaramıyordu; daily/weekly/monthly için aynı veri geliyordu.
+v4 ÖZELLİKLERİ:
+  - Multi-timeframe tek query (|1W, |1M suffix'leri)
+  - Timeframe bug çözüldü
 
-v4 ÇÖZÜM: b-165.html'in yöntemini birebir kopyala — sütun isimlerine
-         TradingView timeframe suffix'i ekle (RSI|1W, RSI|1M) ve tek
-         query'de üç zaman dilimini birden çek.
-
-Avantaj: 3× daha hızlı (tek HTTP round-trip) + timeframe bug'ı çözüldü.
+v5 YENİLİKLERİ:
+  - fetch_tv_bulk(): Tüm Türk hisselerini tek query ile çeker.
+    b-165'in ana tarama yöntemi. ~630+ hisse için ~1-2 saniye.
+  - symbols.py'ye artık ihtiyaç yok — evren TV'nin kendisi sağlıyor.
 ═══════════════════════════════════════════════════════════════
 """
 from tradingview_screener import Query, col
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 # Her zaman dilimi için çekilen ortak sütunlar
 _BASE_COLS = ['Recommend.All', 'RSI', 'Stoch.K',
               'MACD.macd', 'MACD.signal', 'EMA20', 'EMA50']
 
-# Sadece günlükte çekilen ekstralar (EMA200, volume, ADX, ATR, change)
+# Sadece günlükte çekilen ekstralar (EMA200, volume, ADX, ATR, change, close)
 _DAILY_EXTRA = ['close', 'change', 'volume',
                 'EMA200', 'ADX', 'ATR',
                 'average_volume_10d_calc']
@@ -63,7 +63,7 @@ def _process_tf(row: Dict, close: Optional[float], suffix: str = '') -> Dict:
     ms = _safe_num(row.get(f'MACD.signal{sfx}'))
     out['macd'] = (mm - ms) if (mm is not None and ms is not None) else None
 
-    # EMA'lar yönlü fark olarak (close - EMA) / close — b-165 ile uyumlu
+    # EMA'lar yönlü fark olarak (close - EMA) / close
     ema_keys = ['EMA20', 'EMA50']
     if not suffix:  # günlükte EMA200 da var
         ema_keys.append('EMA200')
@@ -78,13 +78,55 @@ def _process_tf(row: Dict, close: Optional[float], suffix: str = '') -> Dict:
     return out
 
 
+def _row_to_tf_dict(row: Dict) -> Dict:
+    """
+    Bir TV satırını D/W/M dict'lerine çevirir.
+    Hem single-symbol hem bulk fetch tarafından kullanılır.
+    """
+    close = _safe_num(row.get('close'))
+
+    d = _process_tf(row, close, suffix='')
+    d['_close'] = close
+    d['close'] = close
+    d['change'] = _safe_num(row.get('change'))
+    d['vol'] = _safe_num(row.get('volume'))
+    d['vol_avg'] = _safe_num(row.get('average_volume_10d_calc'))
+    d['adx'] = _safe_num(row.get('ADX'))
+    d['atr'] = _safe_num(row.get('ATR'))
+
+    w = _process_tf(row, close, suffix='1W')
+    w['_close'] = close
+
+    m = _process_tf(row, close, suffix='1M')
+    m['_close'] = close
+
+    return {'d': d, 'w': w, 'm': m}
+
+
+def _extract_symbol(row_dict: Dict, idx) -> Optional[str]:
+    """
+    Satırdan sembol kodunu çıkar. 'name' sütunu öncelikli,
+    yoksa DataFrame index'i fallback (index 'BIST:THYAO' formatında).
+    """
+    name = row_dict.get('name')
+    if name:
+        return str(name).strip().upper()
+    try:
+        raw = str(idx)
+        if ':' in raw:
+            return raw.split(':')[-1].strip().upper()
+        return raw.strip().upper()
+    except Exception:
+        return None
+
+
+# ══════════════════════════════════════════════════════════
+# TEK HİSSE FETCH — NVS endpoint'i ve detay paneli için
+# ══════════════════════════════════════════════════════════
 def fetch_all_timeframes(symbol: str) -> Dict:
     """
     Bir hisse için Günlük + Haftalık + Aylık verileri
     TEK TradingView query ile birden çeker.
-
-    Çıktı: {'symbol', 'd': {...}, 'w': {...}, 'm': {...}}
-    Her alt dict nvs.py'nin analyze_nvs() fonksiyonuna hazır formatta.
     """
     try:
         cols = _build_columns()
@@ -103,31 +145,58 @@ def fetch_all_timeframes(symbol: str) -> Dict:
         return {'symbol': symbol, 'd': err,
                 'w': dict(err), 'm': dict(err)}
 
-    close = _safe_num(row.get('close'))
-
-    # ── Günlük (suffix yok) + ekstra alanlar ──
-    d = _process_tf(row, close, suffix='')
-    d['_close'] = close
-    d['close'] = close
-    d['change'] = _safe_num(row.get('change'))
-    d['vol'] = _safe_num(row.get('volume'))
-    d['vol_avg'] = _safe_num(row.get('average_volume_10d_calc'))
-    d['adx'] = _safe_num(row.get('ADX'))
-    d['atr'] = _safe_num(row.get('ATR'))
-
-    # ── Haftalık (|1W) ──
-    w = _process_tf(row, close, suffix='1W')
-    w['_close'] = close
-
-    # ── Aylık (|1M) ──
-    m = _process_tf(row, close, suffix='1M')
-    m['_close'] = close
-
-    return {'symbol': symbol, 'd': d, 'w': w, 'm': m}
+    tf = _row_to_tf_dict(row)
+    return {'symbol': symbol, 'd': tf['d'], 'w': tf['w'], 'm': tf['m']}
 
 
+# ══════════════════════════════════════════════════════════
+# BULK FETCH — Ana tarama için, /scan endpoint'inde kullanılacak
+# ══════════════════════════════════════════════════════════
+def fetch_tv_bulk(limit: int = 700) -> List[Dict]:
+    """
+    Tek TV query ile tüm Türk hisselerini çeker.
+    b-165'in ana tarama yöntemi.
+
+    Returns: Her biri şu formatta liste:
+        [{'symbol': 'THYAO', 'd': {...}, 'w': {...}, 'm': {...}}, ...]
+
+    Hata durumunda: [{'_error': '...'}] ya da boş liste.
+    """
+    try:
+        cols = ['name'] + _build_columns()
+        query = (Query()
+                 .select(*cols)
+                 .set_markets('turkey')
+                 .limit(limit))
+        count, df = query.get_scanner_data()
+        if df is None or len(df) == 0:
+            return []
+    except Exception as e:
+        return [{'_error': str(e)[:200]}]
+
+    results: List[Dict] = []
+    for idx, row in df.iterrows():
+        row_dict = row.to_dict()
+        symbol = _extract_symbol(row_dict, idx)
+        if not symbol:
+            continue
+
+        tf = _row_to_tf_dict(row_dict)
+        results.append({
+            'symbol': symbol,
+            'd': tf['d'],
+            'w': tf['w'],
+            'm': tf['m']
+        })
+
+    return results
+
+
+# ══════════════════════════════════════════════════════════
+# GERİYE DÖNÜK UYUM
+# ══════════════════════════════════════════════════════════
 def fetch_tv_data(symbol: str, timeframe: str = 'D') -> Dict:
-    """Tek timeframe getter — geriye dönük uyum için korundu."""
+    """Tek timeframe getter — eski API için korundu."""
     all_tf = fetch_all_timeframes(symbol)
     key_map = {'D': 'd', 'W': 'w', 'M': 'm'}
     result = all_tf.get(key_map.get(timeframe, 'd'),
@@ -138,32 +207,34 @@ def fetch_tv_data(symbol: str, timeframe: str = 'D') -> Dict:
     return result
 
 
-# ── Hızlı manuel test: python tv_scanner.py ──
+# ══════════════════════════════════════════════════════════
+# MANUEL TEST: python tv_scanner.py
+# ══════════════════════════════════════════════════════════
 if __name__ == '__main__':
-    import json
+    print("=" * 60)
+    print("TEK HİSSE TESTİ — THYAO")
+    print("=" * 60)
     r = fetch_all_timeframes('THYAO')
+    d, w, m = r.get('d', {}), r.get('w', {}), r.get('m', {})
+    print(f"Daily RSI:   {d.get('rsi')}")
+    print(f"Weekly RSI:  {w.get('rsi')}")
+    print(f"Monthly RSI: {m.get('rsi')}")
+    print(f"Close: {d.get('_close')}")
 
-    def _brief(tf_dict):
-        if tf_dict.get('_error'):
-            return f"HATA: {tf_dict['_error']}"
-        return {k: round(v, 3) if isinstance(v, float) else v
-                for k, v in tf_dict.items()
-                if k in ('rsi', 'stoch', 'rec', 'macd',
-                         'ema20', 'ema50', 'ema200',
-                         'change', 'adx', 'vol', 'vol_avg')}
-
+    print("\n" + "=" * 60)
+    print("BULK FETCH TESTİ — Tüm BIST")
     print("=" * 60)
-    print(f"THYAO · Çok Zaman Dilimi Testi")
+    bulk = fetch_tv_bulk(limit=700)
+    if bulk and '_error' in bulk[0]:
+        print(f"HATA: {bulk[0]['_error']}")
+    else:
+        print(f"Çekilen hisse sayısı: {len(bulk)}")
+        if bulk:
+            print(f"İlk 10: {[s['symbol'] for s in bulk[:10]]}")
+            thyao = next((s for s in bulk if s['symbol'] == 'THYAO'), None)
+            if thyao:
+                print(f"\nTHYAO bulk sonucu:")
+                print(f"  Daily RSI:   {thyao['d'].get('rsi')}")
+                print(f"  Weekly RSI:  {thyao['w'].get('rsi')}")
+                print(f"  Monthly RSI: {thyao['m'].get('rsi')}")
     print("=" * 60)
-    print(f"close     : {r['d'].get('_close')}")
-    print(f"DAILY     : {_brief(r['d'])}")
-    print(f"WEEKLY    : {_brief(r['w'])}")
-    print(f"MONTHLY   : {_brief(r['m'])}")
-    print("=" * 60)
-    print("BAŞARI KRİTERİ: daily_rsi, weekly_rsi, monthly_rsi üçü de FARKLI")
-    d_rsi = r['d'].get('rsi')
-    w_rsi = r['w'].get('rsi')
-    m_rsi = r['m'].get('rsi')
-    if d_rsi and w_rsi and m_rsi:
-        all_same = (abs(d_rsi - w_rsi) < 0.01 and abs(d_rsi - m_rsi) < 0.01)
-        print(f"→ {'❌ BUG DEVAM EDİYOR' if all_same else '✅ TİMEFRAME AYRIMI OK'}")
