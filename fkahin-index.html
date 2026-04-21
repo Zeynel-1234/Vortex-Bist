@@ -1,262 +1,687 @@
 <!DOCTYPE html>
-<html lang="tr" translate="no">
+<html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<meta name="google" content="notranslate">
-<meta http-equiv="Content-Language" content="tr">
-<title>Fraktal Kahin · BIST DNA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Fraktal Kahin · NVS</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Courier New',monospace;background:#0b0e14;color:#e3e9f5;min-height:100vh;padding:16px 12px}
-.container{max-width:600px;margin:0 auto}
-h1{font-size:1.8rem;font-weight:400;letter-spacing:2px;color:#a78bfa;margin-bottom:8px}
-.sub{font-size:0.8rem;opacity:0.7;margin-bottom:20px;border-bottom:1px solid #2a2f3a;padding-bottom:12px}
-.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #2a3340;flex-wrap:wrap}
-.tab{flex:1;min-width:80px;padding:10px 4px;background:none;border:none;color:#9ca3af;font-family:inherit;font-size:0.8rem;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent}
-.tab.active{color:#a78bfa;border-bottom-color:#a78bfa}
-.panel{display:none}
-.panel.active{display:block}
-input[type=text]{width:100%;background:#0b0e14;border:1px solid #2a3340;color:#fff;padding:14px 16px;font-family:inherit;font-size:1rem;margin-bottom:12px}
-input:focus{outline:none;border-color:#a78bfa}
-button{background:#a78bfa;border:none;color:#0b0e14;font-weight:bold;padding:14px 20px;font-family:inherit;font-size:1.1rem;width:100%;cursor:pointer;margin-top:8px}
-button:active{background:#c4b5fd}
-button:disabled{opacity:0.5;cursor:not-allowed}
-.status{font-size:0.8rem;margin:12px 0;color:#9ca3af;min-height:20px}
-.status.err{color:#f87171}
-.status.ok{color:#10b981}
-.card{background:#151a22;border-radius:12px;padding:20px 16px;border-left:4px solid #a78bfa;margin-top:16px}
-.sym{font-size:1.8rem;font-weight:600;color:#fff;margin-bottom:4px}
-.dna{background:#1e2430;padding:8px 12px;border-radius:8px;font-size:0.7rem;word-break:break-all;margin:12px 0;border:1px dashed #a78bfa;color:#c4b5fd}
-.row{display:flex;align-items:center;justify-content:space-between;margin:14px 0}
-.badge{font-size:1.4rem;font-weight:800;letter-spacing:2px;padding:6px 16px;border-radius:60px;background:#1e2430}
-.AL,.GUCLU_AL,.ZAYIF_AL{color:#10b981}
-.SAT,.GUCLU_SAT,.ZAYIF_SAT{color:#f43f5e}
-.NOTR{color:#9ca3af}
-.kv{display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;border-bottom:1px solid #2a3340}
-.kv span:first-child{color:#9ca3af}
-.kv span:last-child{color:#fff;font-weight:600}
-.reasons{background:#0b0e14;border-radius:8px;padding:12px;margin-top:14px;font-size:0.8rem;line-height:1.6;border:1px solid #2a3340}
-.reasons li{margin:4px 0 4px 16px;color:#c4b5fd}
-.list-item{background:#151a22;padding:12px;border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;cursor:pointer;border-left:3px solid #2a3340}
-.list-item:active{border-left-color:#a78bfa}
-.list-item .lsym{font-weight:600;color:#fff}
-.list-item .lscore{color:#a78bfa}
-.foot{text-align:center;margin-top:30px;opacity:0.5;font-size:0.7rem}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Courier New',monospace;background:#07090f;color:#c0cfe0;height:100dvh;display:flex;flex-direction:column;overflow:hidden;font-size:12px}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#1e2a3a}
+button{font-family:inherit}
+input,select{font-family:inherit}
+
+#topbar{background:#0b0e18;border-bottom:2px solid #e8b84b;padding:0 12px;height:44px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{color:#e8b84b;font-weight:700;font-size:15px;letter-spacing:3px}
+.vtag{color:#00d4ff;font-size:9px;font-weight:700;letter-spacing:2px}
+.vsub{font-size:8px;color:#2a3548}
+
+#stbar{background:#050709;border-bottom:1px solid #131826;padding:3px 12px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+#dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+#stmsg{font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-sm{background:transparent;border:1px solid #1a2030;color:#4b5e78;padding:2px 7px;border-radius:3px;cursor:pointer;font-size:9px}
+
+#sortbar{background:#080d14;border-bottom:1px solid #131826;padding:4px 8px;display:flex;gap:3px;align-items:center;flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+#sortbar::-webkit-scrollbar{display:none}
+.srt{background:#0b0e18;border:1px solid #1a2030;color:#4b5e78;padding:3px 8px;font-size:9px;cursor:pointer;font-weight:700;border-radius:3px;white-space:nowrap}
+.srt.on{background:#1a0d35;border-color:#e8b84b;color:#e8b84b}
+
+#tabs{background:#0b0e18;border-bottom:1px solid #131826;display:flex;flex-shrink:0}
+.tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;font-size:10px;font-weight:700;color:#2a3548;white-space:nowrap;flex:1}
+.tab.on{color:#e8b84b;border-bottom-color:#e8b84b}
+
+#layout{display:flex;flex:1;overflow:hidden;min-height:0}
+#sidebar{width:130px;background:#08090f;border-right:1px solid #131826;display:flex;flex-direction:column;flex-shrink:0}
+#srch{width:100%;background:#0f1118;border:none;border-bottom:1px solid #131826;color:#fff;padding:7px 8px;font-size:11px;outline:none}
+#wcnt{padding:3px 8px;font-size:9px;color:#4b5e78;border-bottom:1px solid #131826;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:3px}
+.flt-btn{background:#0b0e18;border:1px solid #1a2030;color:#4b5e78;padding:2px 5px;border-radius:3px;cursor:pointer;font-size:8px;font-weight:700}
+.flt-btn.on{background:#0d1f35;border-color:#22c55e;color:#22c55e}
+#wlist{overflow-y:auto;flex:1}
+
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.pnl{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.hide{display:none!important}
+
+#dist-bar{background:#0b1510;border-bottom:1px solid #1a3a1a;padding:4px 8px;font-size:9px;display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0}
+.dist-chip{padding:1px 5px;border-radius:2px;font-weight:700}
+#ftbl{flex:1;overflow-y:auto}
+
+.card{background:#0b0e18;border:1px solid #131826;border-radius:5px;padding:8px 10px;margin-bottom:8px}
+.ct{font-size:9px;letter-spacing:2px;color:#4b5e78;font-weight:700;margin-bottom:6px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.gi{display:flex;justify-content:space-between;font-size:10px;padding:2px 5px;background:#080c12;border-radius:2px}
+.gl{color:#7a9ab8}.gv{font-weight:700}
+.cbar{height:8px;border-radius:4px;overflow:hidden;background:#131826;margin:4px 0}
+.cbar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.stat-box{background:#080c12;border-radius:4px;padding:6px;text-align:center}
+
+.nvs-ring{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0}
+.nvs-num{font-size:48px;font-weight:700;line-height:1;letter-spacing:-2px}
+.nvs-lbl{font-size:11px;font-weight:700;letter-spacing:2px;margin-top:4px}
+.nvs-bar{height:10px;border-radius:5px;overflow:hidden;background:#131826;margin:6px 0;width:100%}
+.nvs-fill{height:100%;border-radius:5px;transition:width .4s ease}
+
+.dec-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0d14}
+.dec-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+
+#rep{position:fixed;inset:0;background:#07090f;z-index:99;display:flex;flex-direction:column;overflow:hidden}
+#rph{background:#0b0e18;border-bottom:1px solid #1a2030;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:4px}
+#rpb{flex:1;overflow-y:auto;padding:8px 10px 0 10px}
+#rpfoot{background:#0b0e18;border-top:1px solid #131826;padding:8px 10px;flex-shrink:0}
+
+#psug{background:#0b1424;border:1px solid #1e3050;display:none;max-height:130px;overflow-y:auto;border-radius:0 0 5px 5px;margin-bottom:6px}
 </style>
 </head>
 <body>
-<div class="container">
-<h1>FRAKTAL KAHIN</h1>
-<div class="sub">BIST · HURST · FFT · ATR · FYI · LRK</div>
 
-<div class="tabs">
-<button class="tab active" data-tab="single">TEK HISSE</button>
-<button class="tab" data-tab="dips">DIP</button>
-<button class="tab" data-tab="peaks">TEPE</button>
-<button class="tab" data-tab="bt">BACKTEST</button>
+<div id="topbar">
+  <span class="logo">BIST</span>
+  <div>
+    <div class="vtag">FRAKTAL KAHİN · NVS</div>
+    <div class="vsub">Nihai Vortex Skoru · 3TF · 630 hisse</div>
+  </div>
+  <span id="clk" style="font-size:10px;color:#2a3548;margin-left:auto"></span>
 </div>
 
-<div class="panel active" id="panel-single">
-<input type="text" id="sym" placeholder="Hisse kodu" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
-<button id="goBtn">ANALIZ ET</button>
-<div class="status" id="st1"></div>
-<div id="result"></div>
+<div id="stbar">
+  <div id="dot" style="background:#e8b84b"></div>
+  <span id="stmsg" style="color:#e8b84b">Başlatılıyor...</span>
+  <button class="btn-sm" onclick="refresh(true)">↻</button>
 </div>
 
-<div class="panel" id="panel-dips">
-<button id="dipsBtn">DIP HISSELERI TARA</button>
-<div class="status" id="st2"></div>
-<div id="dipsList"></div>
+<div id="sortbar">
+  <span style="font-size:9px;color:#4b5e78;flex-shrink:0">Sırala:</span>
+  <button class="srt on" onclick="setSort('nvs',this)">NVS</button>
+  <button class="srt" onclick="setSort('bkm',this)">BKM</button>
+  <button class="srt" onclick="setSort('gunluk',this)">Günlük</button>
+  <button class="srt" onclick="setSort('guven_skoru',this)">GS</button>
+  <button class="srt" onclick="setSort('gunluk_degisim',this)">GÜN%</button>
+  <button class="srt" onclick="setSort('sembol',this)">A-Z</button>
 </div>
 
-<div class="panel" id="panel-peaks">
-<button id="peaksBtn">TEPE HISSELERI TARA</button>
-<div class="status" id="st3"></div>
-<div id="peaksList"></div>
+<div id="tabs">
+  <button class="tab on" onclick="showTab('tp-f',this)">📈 FİYAT</button>
+  <button class="tab" onclick="showTab('tp-bt',this)">📊 BACKTEST</button>
+  <button class="tab" onclick="showTab('tp-p',this)">💼 PORTFÖY</button>
 </div>
 
-<div class="panel" id="panel-bt">
-<input type="text" id="btSym" placeholder="Hisse kodu" value="THYAO" autocapitalize="characters" style="text-transform:uppercase">
-<button id="btBtn">BU HISSEYI TEST ET</button>
-<button id="btAllBtn" style="margin-top:6px;background:#1e2430;color:#a78bfa;border:1px solid #a78bfa">EN GUVENILIR 50 HISSE</button>
-<div class="status" id="st4"></div>
-<div id="btResult"></div>
+<div id="layout">
+  <div id="sidebar">
+    <input id="srch" placeholder="🔍 Ara..." oninput="renderSidebar()">
+    <div id="wcnt">
+      <span id="wcnt-lbl">—</span>
+      <button id="flt-gal" class="flt-btn" onclick="toggleFlt()">▲ AL+</button>
+    </div>
+    <div id="wlist"></div>
+  </div>
+
+  <div id="main">
+    <div id="tp-f" class="pnl">
+      <div id="dist-bar">—</div>
+      <div id="ftbl"></div>
+    </div>
+
+    <div id="tp-bt" class="pnl hide">
+      <div style="background:#0b0e18;border-bottom:1px solid #131826;padding:6px 10px;flex-shrink:0">
+        <div style="font-size:10px;font-weight:700;color:#e8b84b;margin-bottom:5px">📊 BACKTEST</div>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+          <input id="bt-sym" value="THYAO" style="background:#0f1118;border:1px solid #2a3548;color:#fff;padding:5px 8px;font-size:11px;border-radius:3px;width:80px" oninput="this.value=this.value.toUpperCase()">
+          <select id="bt-period" style="background:#0f1118;border:1px solid #2a3548;color:#fff;padding:5px;font-size:10px;border-radius:3px">
+            <option value="1y">1 Yıl</option>
+            <option value="2y" selected>2 Yıl</option>
+            <option value="5y">5 Yıl</option>
+          </select>
+          <button onclick="runBacktest()" style="background:#7c3aed;border:none;color:#fff;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">▶ ÇALIŞTIR</button>
+        </div>
+      </div>
+      <div id="bt-area" style="flex:1;overflow-y:auto;padding:8px"><div style="padding:16px;text-align:center;color:#2a3548;font-size:10px">Hisse seç, periyot seç, ÇALIŞTIR.</div></div>
+    </div>
+
+    <div id="tp-p" class="pnl hide">
+      <div style="background:#0b1020;border-bottom:1px solid #1e3050;padding:8px 12px;font-size:12px;font-weight:700;color:#e8b84b;flex-shrink:0">💼 PORTFÖY</div>
+      <div style="padding:8px 10px;border-bottom:1px solid #131826;flex-shrink:0">
+        <input id="psi" placeholder="Hisse ara..." oninput="sugPF(this.value)" style="width:100%;background:#060a10;border:1px solid #1e3050;color:#fff;padding:8px 10px;border-radius:5px;font-size:12px;outline:none;margin-bottom:6px">
+        <div id="psug"></div>
+        <div id="plbl" style="font-size:12px;font-weight:700;color:#e8b84b;margin-bottom:6px">— seçilmedi</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="pfAdd()" style="flex:1;background:#22c55e;color:#000;border:none;padding:9px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">+ EKLE</button>
+          <button onclick="pfRem()" style="flex:1;background:#300;color:#f44;border:none;padding:9px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">− ÇIKAR</button>
+        </div>
+      </div>
+      <div id="plist" style="flex:1;overflow-y:auto"></div>
+    </div>
+  </div>
 </div>
 
-<div class="foot">2026 · Fraktal Kahin</div>
+<div id="rep" class="hide">
+  <div id="rph">
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0">
+      <div id="rsym" style="font-size:15px;font-weight:700;color:#e8b84b">—</div>
+      <div id="rbig" style="font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;border:1px solid #131826">—</div>
+      <div id="rcs" style="font-size:10px;color:#4b5e78"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+      <button id="r-tkip" onclick="toggleTakip()" class="btn-sm" style="padding:4px 8px">☆</button>
+      <button onclick="closeRep()" style="background:#ef4444;border:none;color:#fff;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:700">✕</button>
+    </div>
+  </div>
+  <div id="rpb"></div>
+  <div id="rpfoot">
+    <div style="display:flex;gap:6px">
+      <button onclick="repBacktest()" style="flex:1;background:#7c3aed;color:#fff;border:none;padding:11px 0;font-size:12px;font-weight:700;border-radius:5px;cursor:pointer">📊 BACKTEST</button>
+      <button onclick="repTV()" style="flex:1;background:#e8b84b;color:#000;border:none;padding:11px 0;font-size:12px;font-weight:700;border-radius:5px;cursor:pointer">📈 TV GRAFİK</button>
+      <button onclick="closeRep()" style="flex:1;background:#ef4444;color:#fff;border:none;padding:11px 0;font-size:12px;font-weight:700;border-radius:5px;cursor:pointer">✕ KAPAT</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const API = window.location.origin;
+/* ════════════════════════════════════════════════════════════════
+   FRAKTAL KAHİN · NVS — Tek Dosyalı Frontend
+   Backend: /scan · /nvs/{symbol} · /backtest/{symbol}
+   ════════════════════════════════════════════════════════════════ */
 
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
-  };
-});
+const K_PF='fk_pf_v1', K_TK='fk_tk_v1';
+let STOCKS=[], DIST={}, SURE_MS=0;
+let SORT_BY='nvs', FLT_UP=false;
+let CURRENT_SYM='';
+let PF=[], TAKIP={}, PFS='';
 
-async function callAPI(path, statusEl) {
-  statusEl.textContent = 'Yukleniyor...';
-  statusEl.className = 'status';
-  try {
-    const r = await fetch(API + path);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    statusEl.textContent = 'Tamamlandi';
-    statusEl.className = 'status ok';
-    return data;
-  } catch (e) {
-    statusEl.textContent = 'Hata: ' + e.message;
-    statusEl.className = 'status err';
-    return null;
+function G(id){return document.getElementById(id);}
+function esc(s){return(s||'').toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+function loadStore(){
+  try{ PF=JSON.parse(localStorage.getItem(K_PF)||'[]'); }catch(e){PF=[];}
+  try{ TAKIP=JSON.parse(localStorage.getItem(K_TK)||'{}'); }catch(e){TAKIP={};}
+}
+function saveStore(){
+  try{ localStorage.setItem(K_PF,JSON.stringify(PF)); }catch(e){}
+  try{ localStorage.setItem(K_TK,JSON.stringify(TAKIP)); }catch(e){}
+}
+
+function nvsLabel(n){
+  if(n==null) return {t:'—',c:'#475569',bg:'#1e293b',emoji:''};
+  if(n>=80) return {t:'GÜÇLÜ AL',c:'#22c55e',bg:'#052e16',emoji:'🟢'};
+  if(n>=65) return {t:'AL',c:'#86efac',bg:'#022d10',emoji:'🟩'};
+  if(n>=45) return {t:'NÖTR',c:'#94a3b8',bg:'#1e293b',emoji:'⬜'};
+  if(n>=30) return {t:'SAT',c:'#fca5a5',bg:'#3b1010',emoji:'🟥'};
+  return {t:'GÜÇLÜ SAT',c:'#ef4444',bg:'#450a0a',emoji:'🔴'};
+}
+function sigLabel(s){
+  if(s==null) return {t:'—',bg:'#1e293b',c:'#475569'};
+  if(s>=75) return {t:'G.AL',bg:'#14532d',c:'#22c55e'};
+  if(s>=60) return {t:'AL',bg:'#052e16',c:'#86efac'};
+  if(s>=42) return {t:'NOTR',bg:'#1e293b',c:'#94a3b8'};
+  if(s>=28) return {t:'SAT',bg:'#3b1010',c:'#fca5a5'};
+  return {t:'G.SAT',bg:'#450a0a',c:'#ef4444'};
+}
+function csLabel(cs){
+  if(cs>=80) return {t:'YÜKSEK',c:'#22c55e'};
+  if(cs>=65) return {t:'ORTA',c:'#86efac'};
+  if(cs>=45) return {t:'DÜŞÜK',c:'#e8b84b'};
+  return {t:'YOK',c:'#ef4444'};
+}
+
+function setStatus(state,msg){
+  const col = state===true?'#22c55e' : state===false?'#ef4444' : '#e8b84b';
+  const d=G('dot'),m=G('stmsg');
+  if(d) d.style.background=col;
+  if(m){ m.textContent=msg; m.style.color=col; }
+}
+
+async function apiScan(force){
+  const r = await fetch('/scan'+(force?'?force=true':''));
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+async function apiNVS(sym){
+  const r = await fetch('/nvs/'+sym+'?force=true');
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+async function apiBacktest(sym,period){
+  const r = await fetch('/backtest/'+sym+'?period='+period);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+
+async function refresh(force){
+  setStatus(null,'🔄 TradingView verisi yükleniyor...');
+  try{
+    const data = await apiScan(force);
+    STOCKS = data.sonuclar || [];
+    DIST = data.nvs_dagilimi || {};
+    SURE_MS = data.sure_ms || 0;
+    renderDist(); renderSidebar(); renderList(); renderPortfolio();
+    const ts = new Date().toLocaleTimeString('tr-TR');
+    setStatus(true, `✓ ${STOCKS.length} hisse · ${SURE_MS}ms · ${ts}`);
+  }catch(e){
+    setStatus(false, '✗ '+e.message);
   }
 }
 
-function renderResult(d) {
-  if (!d || d.hata) return '<div class="card"><div class="sym">'+(d?.sembol||'?')+'</div><div style="color:#f87171;margin-top:10px">'+(d?.hata||'Veri yok')+'</div></div>';
-  const sig = d.sinyal || 'NOTR';
-  const sci = d.bilimsel_gerekce || {};
-  const reasons = (d.tetiklenen_faktorler || []).map(r => '<li>'+r+'</li>').join('');
-  return '<div class="card"><div class="sym">'+d.sembol+'</div>'+
-    '<div class="dna">'+(d.dna_kodu||'-')+'</div>'+
-    '<div class="row"><span style="opacity:0.7">SINYAL</span><span class="badge '+sig+'">'+sig.replace('_',' ')+'</span></div>'+
-    '<div class="row"><span>Guc</span><span style="font-size:1.3rem;font-weight:600">'+(d.guc*100).toFixed(0)+'%</span></div>'+
-    '<div class="kv"><span>Fiyat</span><span>'+(d.fiyat?.toFixed(2)||'-')+' TL</span></div>'+
-    '<div class="kv"><span>Gunluk Degisim</span><span>'+(d.gunluk_degisim>0?'+':'')+(d.gunluk_degisim?.toFixed(2))+'%</span></div>'+
-    '<div class="kv"><span>Yon</span><span>'+(d['yön']||'-')+'</span></div>'+
-    '<div class="kv"><span>Hurst</span><span>'+sci.hurst+'</span></div>'+
-    '<div class="kv"><span>Dominant Dongu</span><span>'+sci.dominant_cycle+'g</span></div>'+
-    '<div class="kv"><span>Volatilite</span><span>'+(sci.volatilite_rejimi?.rejim||'-')+'</span></div>'+
-    '<div class="kv"><span>FYI</span><span>'+sci.fyi+'</span></div>'+
-    '<div class="kv"><span>LRK</span><span>'+sci.lrk+'</span></div>'+
-    '<div class="kv"><span>Beklenen Vade</span><span>'+(d.beklenen_vade||'-')+'</span></div>'+
-    '<div class="reasons"><strong>Tetiklenen Faktorler:</strong><ul>'+(reasons||'<li>Yok</li>')+'</ul></div>'+
-    '<div style="margin-top:12px;font-size:0.8rem;color:#9ca3af;font-style:italic">'+(d.yaratici_not||'')+'</div>'+
-    '</div>';
+function renderDist(){
+  const d=DIST;
+  G('dist-bar').innerHTML =
+    `<span class="dist-chip" style="background:#052e16;color:#22c55e">🟢 G.AL ${d.gucl_al||0}</span>
+     <span class="dist-chip" style="background:#022d10;color:#86efac">🟩 AL ${d.al||0}</span>
+     <span class="dist-chip" style="background:#1e293b;color:#94a3b8">⬜ NÖTR ${d.notr||0}</span>
+     <span class="dist-chip" style="background:#3b1010;color:#fca5a5">🟥 SAT ${d.sat||0}</span>
+     <span class="dist-chip" style="background:#450a0a;color:#ef4444">🔴 G.SAT ${d.gucl_sat||0}</span>`;
 }
 
-function renderList(items) {
-  if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
-  return items.map(d => '<div class="list-item" onclick="loadSym(\''+d.sembol+'\')">'+
-    '<div><div class="lsym">'+d.sembol+'</div><div style="font-size:0.75rem;color:#9ca3af">'+d.sinyal+'</div></div>'+
-    '<div class="lscore">'+(d.guc*100).toFixed(0)+'%</div></div>').join('');
+function setSort(by,btn){
+  SORT_BY = by;
+  document.querySelectorAll('.srt').forEach(x=>x.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderSidebar(); renderList();
+}
+function toggleFlt(){
+  FLT_UP=!FLT_UP;
+  const b=G('flt-gal');
+  if(b){ b.classList.toggle('on',FLT_UP); b.textContent=FLT_UP?'▼ TÜM':'▲ AL+'; }
+  renderSidebar(); renderList();
+}
+function sortRows(rows){
+  const reverse = SORT_BY!=='sembol';
+  return rows.slice().sort((a,b)=>{
+    if(SORT_BY==='sembol') return (a.sembol||'').localeCompare(b.sembol||'');
+    const av=a[SORT_BY]??-9999, bv=b[SORT_BY]??-9999;
+    return reverse?(bv-av):(av-bv);
+  });
+}
+function filterRows(rows,q){
+  q=(q||'').toUpperCase().trim();
+  let f = rows;
+  if(FLT_UP) f = f.filter(r=>(r.nvs||0)>=65);
+  if(q) f = f.filter(r=>(r.sembol||'').indexOf(q)>=0);
+  return f;
 }
 
-function renderBacktest(d) {
-  if (!d || d.hata) return '<div class="card"><div class="sym">'+(d?.sembol||'?')+'</div><div style="color:#f87171;margin-top:10px">'+(d?.hata||'Veri yok')+'</div></div>';
-  if (!d.yeterli_veri) return '<div class="card" style="border-left-color:#f87171"><div class="sym">'+d.sembol+'</div><div style="color:#f87171;margin-top:10px">Yeterli gecmis veri yok</div></div>';
-  if (d.toplam_sinyal === 0) return '<div class="card"><div class="sym">'+d.sembol+'</div><div style="color:#9ca3af;margin-top:10px">Test periyodunda guclu sinyal yok</div></div>';
-  const m = d.metrikler || {};
-  const m21 = m['21g']||{}, m42 = m['42g']||{}, m63 = m['63g']||{};
-  const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
-  return '<div class="card" style="border-left-color:'+renk+'"><div class="sym">'+d.sembol+'</div>'+
-    '<div class="row"><span style="opacity:0.7">GUVENILIRLIK</span><span class="badge" style="color:'+renk+';font-size:1.1rem">'+d.guvenilirlik+'</span></div>'+
-    '<div class="row"><span>Kalite Skoru</span><span style="font-size:1.5rem;font-weight:600;color:'+renk+'">'+d.kalite_skoru+'/100</span></div>'+
-    '<div class="kv"><span>Test Periyodu</span><span>'+d.test_periyodu_bar+' bar</span></div>'+
-    '<div class="kv"><span>Uretilen Sinyal</span><span>'+d.toplam_sinyal+'</span></div>'+
-    '<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem;letter-spacing:1px">63 GUNLUK PERFORMANS</div>'+
-    '<div class="kv"><span>Win Rate</span><span>'+(m63.win_rate||0)+'%</span></div>'+
-    '<div class="kv"><span>+5% Kazanma</span><span>'+(m63.precision_5pct||0)+'%</span></div>'+
-    '<div class="kv"><span>+15% Kazanma</span><span>'+(m63.precision_15pct||0)+'%</span></div>'+
-    '<div class="kv"><span>Ortalama Getiri</span><span>'+(m63.ortalama_getiri||0)+'%</span></div>'+
-    '<div class="kv"><span>En Iyi/Kotu</span><span>'+(m63.best_signal||0)+'% / '+(m63.worst_signal||0)+'%</span></div>'+
-    '<div class="kv"><span>Max Drawdown</span><span style="color:#f87171">'+(m63.max_drawdown||0)+'%</span></div>'+
-    '<div class="kv"><span>Calmar Orani</span><span>'+(m63.calmar||0)+'</span></div>'+
-    '<div style="margin-top:18px;color:#a78bfa;font-size:0.85rem">21/42/63 GUN KARSILASTIRMA</div>'+
-    '<div class="kv"><span>21g Win</span><span>'+(m21.win_rate||0)+'%</span></div>'+
-    '<div class="kv"><span>42g Win</span><span>'+(m42.win_rate||0)+'%</span></div>'+
-    '<div class="kv"><span>63g Win</span><span>'+(m63.win_rate||0)+'%</span></div>'+
-    '<div class="reasons"><strong>YORUM:</strong><br>'+
-    (d.guvenilirlik === 'YUKSEK' ? 'Bu hissede sistem tutarli sonuclar veriyor.' : '')+
-    (d.guvenilirlik === 'ORTA' ? 'Karma sonuclar. Sinyalleri baska teyitlerle birlikte degerlendir.' : '')+
-    (d.guvenilirlik === 'DUSUK' ? 'Sistem bu hissede zayif. Sinyallere temkinli yaklas.' : '')+
-    (d.guvenilirlik === 'GUVENILMEZ' ? 'Bu hisse icin sistem calismiyor. Sinyallerini kullanma.' : '')+
-    '</div></div>';
+function renderList(){
+  const rows = sortRows(filterRows(STOCKS));
+  let H = `<div style="display:grid;grid-template-columns:70px 1fr 70px;padding:5px 10px;background:#0b0e18;border-bottom:2px solid #1a2540;font-size:9px;color:#5b7a9a;font-weight:700;position:sticky;top:0;z-index:1">
+    <span>SEMBOL</span><span style="text-align:center">NVS · SİNYAL</span><span style="text-align:right">GÜN%</span></div>`;
+  for(const r of rows){
+    const nl=nvsLabel(r.nvs), cs=r.guven_skoru||0;
+    const csc = cs>=65?'#22c55e':cs>=45?'#e8b84b':'#ef4444';
+    const chg=r.gunluk_degisim;
+    const cs2 = chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':'—';
+    const cc = chg!=null?(chg>0?'#22c55e':chg<0?'#ef4444':'#94a3b8'):'#2a3548';
+    const tk = TAKIP[r.sembol]?'<span style="width:4px;height:4px;background:#e8b84b;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:middle"></span>':'';
+    H += `<div onclick="openDetail('${esc(r.sembol)}')" style="display:grid;grid-template-columns:70px 1fr 70px;padding:6px 10px;border-bottom:1px solid #0d1018;cursor:pointer;align-items:center">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#fff">${tk}${esc(r.sembol)}</div>
+        <div style="font-size:9px;color:#4b5e78">${r.fiyat!=null?'₺'+(+r.fiyat).toFixed(2):'—'}</div>
+      </div>
+      <div style="text-align:center">
+        <span style="font-size:11px;font-weight:700;padding:1px 6px;background:${nl.bg};color:${nl.c};border-radius:2px">NVS ${r.nvs??'—'}</span>
+        <div style="font-size:9px;margin-top:2px">
+          <span style="color:${csc};font-weight:700;background:${csc}22;padding:0 4px;border-radius:2px">GS ${Math.round(cs)}%</span>
+          <span style="font-size:8px;font-weight:700;padding:0 3px;background:${nl.bg};color:${nl.c};border-radius:2px;margin-left:3px">${nl.t}</span>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:${cc}">${cs2}</div>
+    </div>`;
+  }
+  G('ftbl').innerHTML = H;
 }
 
-function renderBTList(items) {
-  if (!items || items.length === 0) return '<div style="text-align:center;padding:40px;color:#9ca3af">Sonuc yok</div>';
-  return items.map(d => {
-    const renk = d.guvenilirlik === 'YUKSEK' ? '#10b981' : (d.guvenilirlik === 'ORTA' ? '#a78bfa' : (d.guvenilirlik === 'DUSUK' ? '#f59e0b' : '#f87171'));
-    const m63 = d.metrikler?.['63g'] || {};
-    return '<div class="list-item" style="border-left-color:'+renk+'" onclick="loadBT(\''+d.sembol+'\')">'+
-      '<div><div class="lsym">'+d.sembol+'</div><div style="font-size:0.7rem;color:#9ca3af">'+d.guvenilirlik+' '+d.toplam_sinyal+' sinyal '+(m63.win_rate||0)+'% win</div></div>'+
-      '<div class="lscore" style="color:'+renk+'">'+d.kalite_skoru+'</div></div>';
-  }).join('');
+function renderSidebar(){
+  const q = G('srch')?G('srch').value:'';
+  const rows = sortRows(filterRows(STOCKS,q));
+  G('wcnt-lbl').textContent = `${rows.length}`;
+  let H = '';
+  for(const r of rows){
+    const nl=nvsLabel(r.nvs);
+    const tk = TAKIP[r.sembol]?'★ ':'';
+    H += `<div onclick="openDetail('${esc(r.sembol)}')" style="padding:5px 8px;border-bottom:1px solid #0d1018;cursor:pointer;display:flex;align-items:center;gap:4px">
+      <div style="flex:1;min-width:0;font-size:11px;font-weight:700;color:#fff">${tk}${esc(r.sembol)}</div>
+      <div style="font-size:12px;font-weight:700;color:${nl.c}">${r.nvs??'—'}</div>
+    </div>`;
+  }
+  G('wlist').innerHTML = H;
 }
 
-window.loadSym = async function(s) {
-  document.querySelector('[data-tab=single]').click();
-  document.getElementById('sym').value = s;
-  document.getElementById('goBtn').click();
-  window.scrollTo(0, 0);
-};
+function showTab(id,btn){
+  ['tp-f','tp-bt','tp-p'].forEach(t=>{
+    const e=G(t);
+    if(e){ e.classList.remove('pnl'); e.classList.add('hide'); }
+  });
+  const e2=G(id);
+  if(e2){ e2.classList.remove('hide'); e2.classList.add('pnl'); }
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  if(id==='tp-f') renderList();
+  else if(id==='tp-p') renderPortfolio();
+}
 
-window.loadBT = async function(s) {
-  document.querySelector('[data-tab=bt]').click();
-  document.getElementById('btSym').value = s;
-  document.getElementById('btBtn').click();
-  window.scrollTo(0, 0);
-};
+async function openDetail(sym){
+  G('rep').classList.remove('hide');
+  CURRENT_SYM = sym;
+  G('rsym').textContent = sym;
+  G('rbig').textContent = 'Yükleniyor...';
+  G('rbig').style.borderColor = '#e8b84b';
+  G('rbig').style.color = '#e8b84b';
+  G('rbig').style.background = 'transparent';
+  G('rcs').textContent = '';
+  G('rpb').innerHTML = '<div style="text-align:center;padding:20px;color:#4b5e78">🔄 Yükleniyor...</div>';
+  updateTakipBtn();
+  try{
+    const d = await apiNVS(sym);
+    if(d.hata){
+      G('rpb').innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444">✗ ${esc(d.hata)}</div>`;
+      return;
+    }
+    renderDetail(d);
+  }catch(e){
+    G('rpb').innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444">✗ ${esc(e.message)}</div>`;
+  }
+}
+function closeRep(){ G('rep').classList.add('hide'); CURRENT_SYM=''; }
 
-document.getElementById('goBtn').onclick = async () => {
-  const s = document.getElementById('sym').value.toUpperCase().trim();
-  if (!s) return;
-  const btn = document.getElementById('goBtn');
-  btn.disabled = true;
-  document.getElementById('result').innerHTML = '';
-  const d = await callAPI('/analyze/' + s, document.getElementById('st1'));
-  if (d) document.getElementById('result').innerHTML = renderResult(d);
-  btn.disabled = false;
-};
+function toggleTakip(){
+  if(!CURRENT_SYM) return;
+  if(TAKIP[CURRENT_SYM]) delete TAKIP[CURRENT_SYM];
+  else TAKIP[CURRENT_SYM]=1;
+  saveStore(); updateTakipBtn(); renderSidebar(); renderList();
+}
+function updateTakipBtn(){
+  const b=G('r-tkip'); if(!b) return;
+  if(TAKIP[CURRENT_SYM]){ b.textContent='★'; b.style.borderColor='#e8b84b'; b.style.color='#e8b84b'; }
+  else{ b.textContent='☆'; b.style.borderColor='#1a2030'; b.style.color='#4b5e78'; }
+}
+function repTV(){
+  if(!CURRENT_SYM) return;
+  window.open(`https://tr.tradingview.com/chart/?symbol=BIST:${CURRENT_SYM}&interval=D`,'_blank');
+}
+function repBacktest(){
+  if(!CURRENT_SYM) return;
+  const sym = CURRENT_SYM;
+  closeRep();
+  G('bt-sym').value = sym;
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach((x,i)=>x.classList.toggle('on', i===1));
+  showTab('tp-bt',null);
+  tabs[1].classList.add('on');
+  runBacktest();
+}
 
-document.getElementById('dipsBtn').onclick = async () => {
-  const btn = document.getElementById('dipsBtn');
-  btn.disabled = true;
-  document.getElementById('dipsList').innerHTML = '';
-  document.getElementById('st2').textContent = 'Tarama basladi (1-3 dk)...';
-  const d = await callAPI('/dips?limit=100&min_score=0.4', document.getElementById('st2'));
-  if (d) document.getElementById('dipsList').innerHTML = renderList(d.hisseler);
-  btn.disabled = false;
-};
+function renderDetail(d){
+  const nvs=d.nvs, nl=nvsLabel(nvs);
+  const cs=d.guven_skoru||0, csl=csLabel(cs);
+  const tf = d.top_factors||[];
+  const ham = (d.ham_indikatorler&&d.ham_indikatorler.daily)||{};
+  const hamW = (d.ham_indikatorler&&d.ham_indikatorler.weekly)||{};
+  const hamM = (d.ham_indikatorler&&d.ham_indikatorler.monthly)||{};
+  const cl = d.fiyat;
 
-document.getElementById('peaksBtn').onclick = async () => {
-  const btn = document.getElementById('peaksBtn');
-  btn.disabled = true;
-  document.getElementById('peaksList').innerHTML = '';
-  document.getElementById('st3').textContent = 'Tarama basladi (1-3 dk)...';
-  const d = await callAPI('/peaks?limit=100&min_score=0.4', document.getElementById('st3'));
-  if (d) document.getElementById('peaksList').innerHTML = renderList(d.hisseler);
-  btn.disabled = false;
-};
+  G('rbig').textContent = `NVS ${nvs} · ${nl.t}`;
+  G('rbig').style.borderColor = nl.c;
+  G('rbig').style.color = nl.c;
+  G('rbig').style.background = nl.bg;
+  G('rcs').innerHTML = `<span style="color:${csl.c};font-weight:700">GS:${Math.round(cs)}%</span>`;
 
-document.getElementById('btBtn').onclick = async () => {
-  const s = document.getElementById('btSym').value.toUpperCase().trim();
-  if (!s) return;
-  const btn = document.getElementById('btBtn');
-  btn.disabled = true;
-  document.getElementById('btResult').innerHTML = '';
-  document.getElementById('st4').textContent = 'Backtest calisiyor (30-60 sn)...';
-  document.getElementById('st4').className = 'status';
-  const d = await callAPI('/backtest/' + s, document.getElementById('st4'));
-  if (d) document.getElementById('btResult').innerHTML = renderBacktest(d);
-  btn.disabled = false;
-};
+  let H = '';
 
-document.getElementById('btAllBtn').onclick = async () => {
-  const btn = document.getElementById('btAllBtn');
-  btn.disabled = true;
-  document.getElementById('btResult').innerHTML = '';
-  document.getElementById('st4').textContent = 'Toplu backtest (5-10 dk)...';
-  document.getElementById('st4').className = 'status';
-  const d = await callAPI('/backtest_all?limit=50&min_quality=30', document.getElementById('st4'));
-  if (d) document.getElementById('btResult').innerHTML = '<div style="margin:12px 0;color:#a78bfa">Yuksek: '+d.yuksek_kalite+' Orta: '+d.orta_kalite+' Toplam: '+d.basarili+'</div>' + renderBTList(d.sonuclar);
-  btn.disabled = false;
-};
+  // 1. NVS Karar Merkezi
+  H += `<div class="card" style="border-color:${nl.c};border-width:2px">
+    <div class="ct">NİHAİ VORTEX SKORU · KARAR MERKEZİ</div>
+    <div class="nvs-ring">
+      <div class="nvs-num" style="color:${nl.c}">${nvs}</div>
+      <div class="nvs-lbl" style="color:${nl.c}">${nl.emoji} ${nl.t}</div>
+    </div>
+    <div class="nvs-bar"><div class="nvs-fill" style="width:${nvs}%;background:${nl.c}"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-top:6px">`;
+  [
+    {n:'BKM',v:d.bkm,w:'40%'},
+    {n:'GS',v:Math.round(cs),w:'25%'},
+    {n:'Günlük',v:d.gunluk,w:'20%'},
+    {n:'Makro',v:d.makro,w:'15%'}
+  ].forEach(x=>{
+    const xc = x.v>=65?'#22c55e':x.v>=45?'#e8b84b':'#ef4444';
+    H += `<div class="stat-box">
+      <div style="font-size:7px;color:#4b5e78">${x.n} ×${x.w}</div>
+      <div style="font-size:16px;font-weight:700;color:${xc}">${x.v}</div></div>`;
+  });
+  H += `</div></div>`;
+
+  // 2. En etkili 3 faktör
+  H += `<div class="card" style="border-color:${nvs>=65?'#22c55e':nvs>=45?'#e8b84b':'#ef4444'}">
+    <div class="ct">NEDEN ${nl.t}? · EN ETKİLİ 3 FAKTÖR</div>`;
+  tf.forEach((f,i)=>{
+    const fc = f.impact>0?'#22c55e':f.impact<0?'#ef4444':'#94a3b8';
+    const fi = f.impact>0?'▲':f.impact<0?'▼':'–';
+    const rank = ['1.','2.','3.'][i];
+    H += `<div class="dec-row">
+      <div class="dec-icon" style="background:${f.impact>0?'#052e16':f.impact<0?'#450a0a':'#1e293b'};color:${fc}">${fi}</div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:#c0cfe0">${rank} ${esc(f.n)}</div>
+        <div style="font-size:9px;color:#4b5e78">Değer: <span style="color:${fc}">${esc(f.raw)}</span> · Katkı ağırlığı: ${Math.round(f.w)}p</div>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:${fc}">${f.impact>0?'+':''}${Math.round(f.impact)}</div>
+    </div>`;
+  });
+  const posCount = tf.filter(f=>f.impact>0).length;
+  const negCount = tf.filter(f=>f.impact<0).length;
+  H += `<div style="margin-top:8px;padding:6px 8px;background:#080c12;border-radius:4px;font-size:9px">`;
+  if(nvs>=65) H += `<span style="color:#22c55e;font-weight:700">✓ AL Kararı:</span> En etkili ${posCount} faktör pozitif. GS %${Math.round(cs)} uyumla destekliyor.`;
+  else if(nvs>=45) H += `<span style="color:#e8b84b;font-weight:700">⏸ Bekle:</span> Sinyaller karışık. Netleşmesini bekle.`;
+  else H += `<span style="color:#ef4444;font-weight:700">✗ SAT:</span> ${negCount} majör faktör negatif. Pozisyon alma.`;
+  H += `</div></div>`;
+
+  // 3. 4 TF karşılaştırma
+  H += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:3px;margin-bottom:8px">`;
+  [
+    {n:'G',v:d.gunluk},
+    {n:'H',v:d.haftalik},
+    {n:'A',v:d.aylik},
+    {n:'BKM',v:d.bkm,sp:true},
+    {n:'NVS',v:nvs,gold:true}
+  ].forEach(x=>{
+    const xs = x.gold?nl:sigLabel(x.v);
+    H += `<div style="background:${x.sp?'#1a0d35':'#0b0e18'};border:1px solid ${x.sp?'#7c3aed':'#131826'};padding:5px;border-radius:4px;text-align:center">
+      <div style="font-size:8px;color:#4b5e78">${x.n}</div>
+      <div style="font-size:17px;font-weight:700;color:${xs.c}">${x.v}</div>
+      <div style="font-size:7px;font-weight:700;background:${xs.bg};color:${xs.c};padding:1px 2px;border-radius:2px">${xs.t}</div>
+    </div>`;
+  });
+  H += `</div>`;
+
+  // 4. Güven Skoru
+  H += `<div class="card" style="border-color:${csl.c}">
+    <div class="ct">GÜVEN SKORU (CS = I_uyum × 0.62 + OT)</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <div style="font-size:26px;font-weight:700;color:${csl.c}">${Math.round(cs)}%</div>
+      <div style="font-size:10px;font-weight:700;color:${csl.c}">${csl.t}</div>
+    </div>
+    <div class="cbar"><div class="cbar-fill" style="width:${Math.round(cs)}%;background:${csl.c}"></div></div>`;
+  const bull = (d.gunluk||50)>50;
+  const ws = [
+    {n:'RSI', ok: ham.rsi!=null?(bull?ham.rsi<50:ham.rsi>55):null},
+    {n:'Stoch', ok: ham.stoch!=null?(bull?ham.stoch<55:ham.stoch>65):null},
+    {n:'MACD', ok: ham.macd!=null?(bull?ham.macd>0:ham.macd<0):null},
+    {n:'EMA20', ok: ham.ema20!=null?(bull?ham.ema20>0:ham.ema20<0):null},
+    {n:'EMA50', ok: ham.ema50!=null?(bull?ham.ema50>0:ham.ema50<0):null},
+    {n:'EMA200', ok: ham.ema200!=null?(bull?ham.ema200>0:ham.ema200<0):null},
+    {n:'TV Rec', ok: ham.rec!=null?(bull?ham.rec>0:ham.rec<0):null}
+  ];
+  H += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:5px">`;
+  for(const w of ws){
+    const wc = w.ok===null?'#2a3548':w.ok?'#22c55e':'#ef4444';
+    H += `<div style="font-size:9px;padding:2px 3px;background:#080c12;border-radius:2px;display:flex;justify-content:space-between">
+      <span style="color:#7a9ab8">${w.n}</span><span style="color:${wc}">${w.ok===null?'?':w.ok?'✓':'✗'}</span></div>`;
+  }
+  H += `</div>`;
+  if(ham.ema200!=null && ham.ema200<0 && bull)
+    H += `<div style="font-size:9px;color:#ef4444;margin-top:4px;padding:2px 4px;background:#1a0808;border-radius:2px">⚠ EMA200 altı → Bear market → GS azaltıldı</div>`;
+  H += `</div>`;
+
+  // 5. BKM Detay
+  const D=d.gunluk||50, W=d.haftalik||50, M=d.aylik||50;
+  const Dn=(D-50)/50, Wn=(W-50)/50, Mn=(M-50)/50;
+  const gate = Mn>0?(1+Mn*0.40):(1+Mn*0.60);
+  const wamp = Dn*Wn>0?(1+Math.abs(Wn)*0.35):(1-Math.abs(Wn)*0.25);
+  H += `<div class="card" style="border-color:#7c3aed">
+    <div class="ct">BİLİŞİK KARAR MATRİSİ</div>
+    <div class="g2">
+      <div class="gi"><span class="gl">Aylık Kapı</span><span class="gv" style="color:${gate>1?'#22c55e':'#ef4444'}">×${gate.toFixed(3)}</span></div>
+      <div class="gi"><span class="gl">Haftalık Amp.</span><span class="gv" style="color:${wamp>1?'#22c55e':'#ef4444'}">×${wamp.toFixed(3)}</span></div>
+      <div class="gi"><span class="gl">Confluence</span><span class="gv" style="color:${Dn*Wn>0?'#22c55e':'#ef4444'}">${Dn*Wn>0?'+':''}${(Dn*Wn).toFixed(2)}</span></div>
+      <div class="gi"><span class="gl">3TF Uyum</span><span class="gv" style="color:${Dn>0&&Wn>0&&Mn>0?'#22c55e':Dn<0&&Wn<0&&Mn<0?'#ef4444':'#94a3b8'}">${Dn>0&&Wn>0&&Mn>0?'BULL':Dn<0&&Wn<0&&Mn<0?'BEAR':'KARIŞIK'}</span></div>
+    </div>
+  </div>`;
+
+  // 6. Ham Veri
+  const fv = (v,p)=> v==null||isNaN(v)?'<span style="color:#2a3548">—</span>':(+v).toFixed(p!=null?p:1);
+  H += `<div class="card"><div class="ct">VERİ · TV SCANNER</div><div class="g2">`;
+  [
+    ['TV Rec G', fv(ham.rec,3)],
+    ['TV Rec H', fv(hamW.rec,3)],
+    ['TV Rec A', fv(hamM.rec,3)],
+    ['RSI G', fv(ham.rsi)],
+    ['RSI H', fv(hamW.rsi)],
+    ['RSI A', fv(hamM.rsi)],
+    ['Stoch G', fv(ham.stoch)],
+    ['MACD G', fv(ham.macd,4)],
+    ['EMA20', ham.ema20!=null?(ham.ema20>0?'Üst':'Alt'):'—'],
+    ['EMA50', ham.ema50!=null?(ham.ema50>0?'Üst':'Alt'):'—'],
+    ['EMA200', ham.ema200!=null?(ham.ema200>0?'Üst':'Alt'):'—'],
+    ['ADX', fv(ham.adx)],
+    ['Hacim', (ham.vol&&ham.vol_avg&&ham.vol_avg>0)?(ham.vol/ham.vol_avg).toFixed(1)+'×':'—'],
+    ['GÜN%', d.gunluk_degisim!=null?(d.gunluk_degisim>0?'+':'')+(+d.gunluk_degisim).toFixed(2)+'%':'—']
+  ].forEach(r=>{ H += `<div class="gi"><span class="gl">${r[0]}</span><span class="gv">${r[1]}</span></div>`; });
+  H += `</div></div>`;
+
+  // 7. Giriş/Çıkış
+  if(cl!=null){
+    const atrV = 0.025*cl;
+    const sl = (cl-atrV*2).toFixed(2);
+    const tp1 = (cl*1.05).toFixed(2);
+    const tp2 = (cl*1.10).toFixed(2);
+    const tp3 = (cl*1.18).toFixed(2);
+    const rr = ((cl*1.10-cl)/(cl-parseFloat(sl))).toFixed(1);
+    H += `<div class="card"><div class="ct">GİRİŞ / ÇIKIŞ (Stop ~2× tahmini ATR)</div><div class="g2">
+      <div class="gi"><span class="gl">Fiyat</span><span class="gv" style="color:#00d4ff">₺${(+cl).toFixed(2)}</span></div>
+      <div class="gi"><span class="gl">Stop</span><span class="gv" style="color:#ef4444">₺${sl}</span></div>
+      <div class="gi"><span class="gl">TP1 +5%</span><span class="gv" style="color:#e8b84b">₺${tp1}</span></div>
+      <div class="gi"><span class="gl">TP2 +10%</span><span class="gv" style="color:#22c55e">₺${tp2}</span></div>
+      <div class="gi"><span class="gl">TP3 +18%</span><span class="gv" style="color:#22c55e">₺${tp3}</span></div>
+      <div class="gi"><span class="gl">R/R</span><span class="gv" style="color:${parseFloat(rr)>=2?'#22c55e':'#ef4444'}">1:${rr}</span></div>
+    </div></div>`;
+  }
+
+  G('rpb').innerHTML = H;
+}
+
+async function runBacktest(){
+  const sym = G('bt-sym').value.trim().toUpperCase();
+  const period = G('bt-period').value;
+  if(!sym){ alert('Sembol gir!'); return; }
+  G('bt-area').innerHTML = `<div style="text-align:center;padding:20px;color:#4b5e78">🔄 ${esc(sym)} backtest hesaplanıyor...</div>`;
+  try{
+    const d = await apiBacktest(sym,period);
+    renderBacktest(d);
+  }catch(e){
+    G('bt-area').innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444">✗ ${esc(e.message)}</div>`;
+  }
+}
+function renderBacktest(d){
+  if(d.hata || d.yeterli_veri===false){
+    G('bt-area').innerHTML = `<div style="padding:16px;color:#ef4444">✗ ${esc(d.hata||'Yeterli veri yok')}</div>`;
+    return;
+  }
+  let H = `<div class="card">
+    <div class="ct">${esc(d.sembol)} · BACKTEST SONUCU</div>
+    <div class="g2">`;
+  const fields = [
+    ['Kalite Skoru', d.kalite_skoru],
+    ['Toplam Sinyal', d.toplam_sinyal],
+    ['Başarı %', d.basari_orani],
+    ['Ort. Getiri %', d.ort_getiri],
+    ['Max Drawdown', d.max_drawdown],
+    ['Sharpe', d.sharpe]
+  ];
+  let hasField = false;
+  for(const [k,v] of fields){
+    if(v==null) continue;
+    hasField = true;
+    H += `<div class="gi"><span class="gl">${k}</span><span class="gv">${typeof v==='number'?v.toFixed(2):esc(String(v))}</span></div>`;
+  }
+  H += `</div></div>`;
+  if(!hasField){
+    H += `<div style="font-size:9px;color:#7a9ab8;padding:4px">Tüm alanlar aşağıda:</div>`;
+  }
+  H += `<pre style="background:#080c12;border-radius:4px;padding:8px;font-size:9px;overflow-x:auto;color:#7a9ab8;white-space:pre-wrap;word-break:break-all">${esc(JSON.stringify(d,null,2))}</pre>`;
+  G('bt-area').innerHTML = H;
+}
+
+function sugPF(q){
+  const b=G('psug');
+  if(!q){ b.style.display='none'; return; }
+  q=q.toUpperCase();
+  const m = STOCKS.filter(r=>(r.sembol||'').indexOf(q)>=0).slice(0,10);
+  if(!m.length){ b.style.display='none'; return; }
+  b.style.display='block';
+  b.innerHTML = m.map(r=>`<div style="padding:7px 10px;cursor:pointer;font-size:11px;border-bottom:1px solid #0f1520;color:#fff" onclick="selPF('${esc(r.sembol)}')"><b>${esc(r.sembol)}</b></div>`).join('');
+}
+function selPF(s){
+  PFS=s;
+  G('plbl').textContent='✓ '+s;
+  G('psug').style.display='none';
+  G('psi').value=s;
+}
+function pfAdd(){
+  if(!PFS){ alert('Önce hisse seç!'); return; }
+  if(PF.some(p=>p.sym===PFS)){ alert('Zaten portföyde!'); return; }
+  PF.push({id:Date.now(),sym:PFS});
+  saveStore(); renderPortfolio();
+}
+function pfRem(){
+  if(!PFS){ alert('Önce hisse seç!'); return; }
+  PF = PF.filter(p=>p.sym!==PFS);
+  PFS=''; G('plbl').textContent='— seçilmedi'; G('psi').value='';
+  saveStore(); renderPortfolio();
+}
+function pfDel(id){
+  PF = PF.filter(p=>p.id!==id);
+  saveStore(); renderPortfolio();
+}
+function renderPortfolio(){
+  const el=G('plist'); if(!el) return;
+  if(!PF.length){
+    el.innerHTML = '<div style="padding:16px;font-size:12px;color:#2a3548;text-align:center">Portföy boş.</div>';
+    return;
+  }
+  let H = '';
+  for(const p of PF){
+    const r = STOCKS.find(x=>x.sembol===p.sym) || {};
+    const nvs=r.nvs, nl=nvsLabel(nvs);
+    const cs=r.guven_skoru||0;
+    const chg=r.gunluk_degisim;
+    const cs2 = chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':'—';
+    const cc = chg!=null?(chg>0?'#22c55e':chg<0?'#ef4444':'#94a3b8'):'#2a3548';
+    H += `<div style="padding:10px 12px;border-bottom:1px solid #0f1520;display:flex;align-items:center;justify-content:space-between">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px">
+          <span onclick="openDetail('${esc(p.sym)}')" style="font-size:15px;font-weight:700;color:#e8b84b;cursor:pointer">${esc(p.sym)}</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 6px;background:${nl.bg};color:${nl.c};border-radius:3px">NVS ${nvs!=null?nvs:'—'} · ${nl.t}</span>
+          <span style="font-size:11px;font-weight:700;color:${cc}">${cs2}</span>
+        </div>
+        <div style="font-size:9px;color:#4b5e78">GS ${Math.round(cs)}% · BKM ${r.bkm||'—'} · G ${r.gunluk||'—'} · H ${r.haftalik||'—'} · A ${r.aylik||'—'}</div>
+      </div>
+      <button onclick="pfDel(${p.id})" style="background:#300;border:none;color:#f44;cursor:pointer;border-radius:3px;padding:3px 10px;font-size:11px">X</button>
+    </div>`;
+  }
+  el.innerHTML = H;
+}
+
+setInterval(()=>{ const e=G('clk'); if(e) e.textContent=new Date().toLocaleTimeString('tr-TR'); },1000);
+setInterval(()=>refresh(false), 5*60*1000); // her 5 dk otomatik yenile
+
+loadStore();
+refresh(false);
 </script>
 </body>
 </html>
