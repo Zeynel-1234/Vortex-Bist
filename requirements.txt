@@ -5,3 +5,4 @@ pandas
 yfinance
 scipy
 requests
+tradingview-screener
