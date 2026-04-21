@@ -464,3 +464,133 @@ def nvs_endpoint(symbol: str, force: bool = Query(False)):
     NVS_CACHE[symbol] = {'t': time.time(), 'data': result}
     
     return result
+    # ═══════════════════════════════════════════════════════════
+# FAZ 3 DEBUG — Adım adım hesaplama izleme
+# ═══════════════════════════════════════════════════════════
+from nvs import (adaptive_base_score, calc_cs, comp_score, 
+                  macro_score, calc_nvs, top_factors, nvs_label)
+
+@app.get("/nvs_debug/{symbol}")
+def nvs_debug(symbol: str):
+    """Her ara hesabı adım adım göster — debug için."""
+    symbol = symbol.upper().strip()
+    tv = fetch_all_timeframes(symbol)
+    d_raw = tv.get('d') or {}
+    w_raw = tv.get('w') or {}
+    m_raw = tv.get('m') or {}
+    
+    if d_raw.get('_error'):
+        return {"hata": d_raw['_error']}
+    
+    # Ham veriler
+    debug = {
+        "sembol": symbol,
+        "1_HAM_VERILER": {
+            "daily": {
+                "rec": d_raw.get('rec'),
+                "rsi": d_raw.get('rsi'),
+                "stoch": d_raw.get('stoch'),
+                "macd_hist": d_raw.get('macd'),
+                "ema20_diff": d_raw.get('ema20'),
+                "ema50_diff": d_raw.get('ema50'),
+                "ema200_diff": d_raw.get('ema200'),
+                "vol": d_raw.get('vol'),
+                "vol_avg": d_raw.get('vol_avg'),
+                "adx": d_raw.get('adx'),
+                "close": d_raw.get('_close'),
+                "change": d_raw.get('change'),
+            },
+            "weekly": {
+                "rec": w_raw.get('rec'),
+                "rsi": w_raw.get('rsi'),
+                "stoch": w_raw.get('stoch'),
+                "macd_hist": w_raw.get('macd'),
+                "ema20_diff": w_raw.get('ema20'),
+                "ema50_diff": w_raw.get('ema50'),
+            },
+            "monthly": {
+                "rec": m_raw.get('rec'),
+                "rsi": m_raw.get('rsi'),
+                "stoch": m_raw.get('stoch'),
+                "macd_hist": m_raw.get('macd'),
+                "ema20_diff": m_raw.get('ema20'),
+                "ema50_diff": m_raw.get('ema50'),
+            },
+        }
+    }
+    
+    # Günlük baz skor — adım adım
+    wm = {k: 1.0 for k in ['rec','rsi','stoch','macd','ema20','ema50','ema200','vol','adx']}
+    s = 50.0
+    steps = [f"BAZ: 50"]
+    
+    rec = d_raw.get('rec')
+    if rec is not None:
+        delta = rec * 25 * wm['rec']
+        s += delta
+        steps.append(f"rec={rec:.3f} → +{delta:.2f} → {s:.2f}")
+    
+    rsi = d_raw.get('rsi')
+    if rsi is not None:
+        delta = (50 - rsi) / 50 * 20 * wm['rsi']
+        s += delta
+        steps.append(f"rsi={rsi:.1f} → {delta:+.2f} → {s:.2f}")
+    
+    stoch = d_raw.get('stoch')
+    if stoch is not None:
+        delta = (50 - stoch) / 50 * 12 * wm['stoch']
+        s += delta
+        steps.append(f"stoch={stoch:.1f} → {delta:+.2f} → {s:.2f}")
+    
+    mh = d_raw.get('macd')
+    if mh is not None:
+        delta = (7 if mh > 0 else -7) * wm['macd']
+        s += delta
+        steps.append(f"macd_hist={mh:.4f} → {delta:+.2f} → {s:.2f}")
+    
+    e20 = d_raw.get('ema20')
+    if e20 is not None:
+        delta = (6 if e20 > 0 else -6) * wm['ema20']
+        s += delta
+        steps.append(f"ema20_diff={e20:.4f} → {delta:+.2f} → {s:.2f}")
+    
+    e50 = d_raw.get('ema50')
+    if e50 is not None:
+        delta = (4 if e50 > 0 else -4) * wm['ema50']
+        s += delta
+        steps.append(f"ema50_diff={e50:.4f} → {delta:+.2f} → {s:.2f}")
+    
+    e200 = d_raw.get('ema200')
+    if e200 is not None:
+        delta = (3 if e200 > 0 else -3) * wm['ema200']
+        s += delta
+        steps.append(f"ema200_diff={e200:.4f} → {delta:+.2f} → {s:.2f}")
+    
+    vol = d_raw.get('vol')
+    va = d_raw.get('vol_avg')
+    if vol is not None and va is not None and va > 0:
+        vr = vol / va
+        if vr > 2.5:
+            delta = 5 * wm['vol']
+        elif vr > 1.8:
+            delta = 3 * wm['vol']
+        elif vr < 0.6:
+            delta = -4 * wm['vol']
+        else:
+            delta = 0
+        s += delta
+        steps.append(f"vol_ratio={vr:.2f} → {delta:+.2f} → {s:.2f}")
+    
+    adx = d_raw.get('adx')
+    if adx is not None and adx > 20 and rec is not None:
+        delta = (1 if rec > 0 else -1) * (3 if adx > 30 else 1) * wm['adx']
+        s += delta
+        steps.append(f"adx={adx:.1f} & rec>0 → {delta:+.2f} → {s:.2f}")
+    
+    final_gunluk = int(max(0, min(100, round(s))))
+    steps.append(f"FINAL Günlük: {final_gunluk}")
+    
+    debug["2_GUNLUK_ADIM_ADIM"] = steps
+    debug["3_GUNLUK_FINAL"] = final_gunluk
+    
+    return _json_safe(debug)
