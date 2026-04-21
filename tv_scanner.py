@@ -1,160 +1,116 @@
 """
 ═══════════════════════════════════════════════════════════════
-TradingView Scanner API Wrapper — v2 (DÜZELTİLDİ)
+TradingView Scanner v3 — tradingview-screener kütüphanesi ile
 ───────────────────────────────────────────────────────────────
-ÖNEMLİ DÜZELTME: Önceki sürümde timeframe belirtilmediği için
-TradingView yanlış zaman dilimi döndürüyordu (intraday gibi).
-Bu sürümde günlük veri için TAMAMI "|1d" suffix ile istenir.
+Önceki iki sürümde timeframe sorunu vardı.
+Bu sürüm hazır kütüphane kullanıyor, timeframe sorunu çözüldü.
 ═══════════════════════════════════════════════════════════════
 """
 
-import requests
+from tradingview_screener import Query, col
 from typing import Dict, Optional
 
-TV_URL = "https://scanner.tradingview.com/turkey/scan"
 
-# GÜNLÜK kapanış verisi: TÜM field'lar açık "|1d" takısı ile
-# (Recommend.All başta olduğu için "recommend.all" şeklinde map edilecek)
-FIELDS_DAILY = [
-    "Recommend.All",
-    "RSI",
-    "Stoch.K",
-    "MACD.macd",
-    "MACD.signal",
-    "EMA20",
-    "EMA50",
-    "EMA200",
-    "ADX",
-    "volume",
-    "average_volume_10d_calc",
-    "close",
-    "change",
-    "change|1W",
-    "change|1M",
-]
-
-FIELDS_WEEKLY = [
-    "Recommend.All|1W",
-    "RSI|1W",
-    "Stoch.K|1W",
-    "MACD.macd|1W",
-    "MACD.signal|1W",
-    "EMA20|1W",
-    "EMA50|1W",
-    "close",
-]
-
-FIELDS_MONTHLY = [
-    "Recommend.All|1M",
-    "RSI|1M",
-    "Stoch.K|1M",
-    "MACD.macd|1M",
-    "MACD.signal|1M",
-    "EMA20|1M",
-    "EMA50|1M",
-    "close",
-]
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "application/json",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Content-Type": "application/json",
-    "Origin": "https://www.tradingview.com",
-    "Referer": "https://www.tradingview.com/",
-}
-
-
-def _process_data(raw: list, fields: list, close: Optional[float] = None) -> Dict:
-    """TradingView ham verisini sözlüğe çevir."""
-    out = {}
-    for i, field in enumerate(fields):
-        if i >= len(raw):
-            break
-        val = raw[i]
-        if val is None:
-            continue
+def _fetch_for_timeframe(symbol: str, interval: str) -> Dict:
+    """
+    Tek hisse, belirli timeframe için veri çek.
+    interval: '1D' (günlük), '1W' (haftalık), '1M' (aylık)
+    """
+    try:
+        columns = [
+            'close', 'change', 'volume',
+            'Recommend.All', 'RSI', 'Stoch.K',
+            'MACD.macd', 'MACD.signal',
+            'EMA20', 'EMA50', 'EMA200',
+            'ADX', 'average_volume_10d_calc',
+        ]
         
-        # Field adını sadeleştir
-        key = field.lower().replace('|1w', '').replace('|1m', '').replace('|1d', '')
+        query = (
+            Query()
+            .select(*columns)
+            .set_markets('turkey')
+            .where(col('name') == symbol)
+            .set_property('preset', 'all_stocks')
+        )
         
-        # EMA değerlerini fiyata göre normalize et: +% (üst) / -% (alt)
-        if key.startswith('ema') and close and close > 0:
+        if interval != '1D':
+            query = query.set_property('interval', interval)
+        
+        count, df = query.get_scanner_data()
+        
+        if df is None or len(df) == 0:
+            return {"_error": f"{symbol} bulunamadı"}
+        
+        row = df.iloc[0]
+        
+        result = {}
+        for col_name in columns:
+            val = row.get(col_name)
+            if val is None or (isinstance(val, float) and (val != val)):  # NaN check
+                continue
+            
+            key = col_name.lower().replace('.', '_')
+            result[key] = float(val) if hasattr(val, 'item') else val
+        
+        return result
+        
+    except Exception as e:
+        return {"_error": f"{str(e)[:150]}"}
+
+
+def _process_row(raw: Dict) -> Dict:
+    """Ham veriyi nvs.py uyumlu formata çevir (EMA → fark, isim mapping)."""
+    if raw.get('_error'):
+        return raw
+    
+    out = dict(raw)
+    close = raw.get('close')
+    
+    # EMA'ları fark olarak normalize et
+    for ema_key in ['ema20', 'ema50', 'ema200']:
+        if ema_key in raw and close and close > 0:
             try:
-                diff = (close - float(val)) / close
-                out[key] = diff
+                out[ema_key] = (close - float(raw[ema_key])) / close
             except (TypeError, ValueError):
                 pass
-        else:
-            out[key] = val
     
-    # MACD histogram = macd - signal
-    if 'macd.macd' in out and 'macd.signal' in out:
-        out['macd_hist'] = out['macd.macd'] - out['macd.signal']
-    
-    # nvs.py uyumluluğu için isim map'leme
-    if 'recommend.all' in out:
-        out['rec'] = out['recommend.all']
-    if 'stoch.k' in out:
-        out['stoch'] = out['stoch.k']
-    if 'macd_hist' in out:
+    # MACD histogram
+    if 'macd_macd' in raw and 'macd_signal' in raw:
+        out['macd_hist'] = raw['macd_macd'] - raw['macd_signal']
         out['macd'] = out['macd_hist']
-    if 'average_volume_10d_calc' in out:
-        out['vol_avg'] = out['average_volume_10d_calc']
-    if 'volume' in out:
-        out['vol'] = out['volume']
     
+    # Alias'lar nvs.py için
+    if 'recommend_all' in raw:
+        out['rec'] = raw['recommend_all']
+    if 'stoch_k' in raw:
+        out['stoch'] = raw['stoch_k']
+    if 'average_volume_10d_calc' in raw:
+        out['vol_avg'] = raw['average_volume_10d_calc']
+    if 'volume' in raw:
+        out['vol'] = raw['volume']
+    if 'adx' in raw:
+        out['adx'] = raw['adx']
+    if 'rsi' in raw:
+        out['rsi'] = raw['rsi']
+    
+    out['_close'] = close
     return out
 
 
 def fetch_tv_data(symbol: str, timeframe: str = 'D') -> Optional[Dict]:
-    """
-    Tek hisse, tek timeframe veri çek.
-    timeframe: 'D' (daily), 'W' (weekly), 'M' (monthly)
-    """
-    fields_map = {'D': FIELDS_DAILY, 'W': FIELDS_WEEKLY, 'M': FIELDS_MONTHLY}
-    fields = fields_map.get(timeframe, FIELDS_DAILY)
+    """Tek timeframe için wrapper."""
+    interval_map = {'D': '1D', 'W': '1W', 'M': '1M'}
+    interval = interval_map.get(timeframe, '1D')
     
-    payload = {
-        "symbols": {
-            "tickers": [f"BIST:{symbol}"],
-            "query": {"types": []}
-        },
-        "columns": fields
-    }
-    
-    try:
-        r = requests.post(TV_URL, json=payload, headers=HEADERS, timeout=10)
-        if r.status_code != 200:
-            return {"_error": f"HTTP {r.status_code}"}
-        
-        data = r.json()
-        if not data.get('data') or len(data['data']) == 0:
-            return {"_error": "Boş yanıt"}
-        
-        raw = data['data'][0].get('d', [])
-        
-        # close field'ı bul
-        close = None
-        if 'close' in fields:
-            idx = fields.index('close')
-            if idx < len(raw):
-                close = raw[idx]
-        
-        result = _process_data(raw, fields, close)
-        result['_symbol'] = symbol
-        result['_timeframe'] = timeframe
-        result['_close'] = close
-        return result
-        
-    except requests.exceptions.Timeout:
-        return {"_error": "Timeout"}
-    except Exception as e:
-        return {"_error": f"Hata: {str(e)[:100]}"}
+    raw = _fetch_for_timeframe(symbol, interval)
+    processed = _process_row(raw)
+    processed['_symbol'] = symbol
+    processed['_timeframe'] = timeframe
+    return processed
 
 
 def fetch_all_timeframes(symbol: str) -> Dict:
-    """Bir hisse için 3 zaman dilimi toplu çekim."""
+    """Günlük + Haftalık + Aylık toplu çekim."""
     return {
         'symbol': symbol,
         'd': fetch_tv_data(symbol, 'D'),
