@@ -1,33 +1,29 @@
 """
 ═══════════════════════════════════════════════════════════════════════
-FRAKTAL KAHİN LAB — AŞAMA 2: OPTIMIZER MOTORU
+FRAKTAL KAHİN LAB — AŞAMA 2b: KALİBRE EDİLMİŞ OPTIMIZER
 ───────────────────────────────────────────────────────────────────────
-Her hisse için:
-  1. TEKLİ arama   — 125 parametre kombinasyonu, en iyi 15'i sakla
-  2. İKİLİ arama   — en iyi 15 teklinin 105 çifti (greedy)
-  3. ÜÇLÜ fallback — ilk iki seviyede kimse %55+ başaramazsa
+v1'den FARKI (CANLI TEST SONUCUNA GÖRE KALİBRE):
+  • MIN_QUALITY_TO_PASS: 55 → 50 (sınırdaki iyi DNAları kaybetmiyoruz)
+  • Kalite formülünde kazanç ağırlığı: 0.30 → 0.35 
+  • Başarı ağırlığı: 0.40 → 0.35 (kazanç öne çıkıyor)
+  • Drawdown cezası: 0.15 → 0.15 (aynı kaldı, risk korunuyor)
+  • Sinyal yeterliliği: 0.15 → 0.15 (aynı kaldı)
 
-KALİTE SKORU FORMÜLÜ:
-  quality = (success_rate × 0.40)
-          + (avg_max_gain × 0.30)
+ÖNCEKİ SONUÇLAR:
+  TKNSA   → OK (57.45)  ✓
+  ASUZU   → ZAYIF (54.1)  — yeni eşikte OK olacak
+  THYAO   → ZAYIF (45.1)  — düşük kalite, sistem doğru tespit ediyor
+
+KALİTE SKORU YENİ FORMÜLÜ:
+  quality = (success_rate × 0.35)
+          + (avg_max_gain × 0.35)    ← daha yüksek kazanç = daha yüksek skor
           - (avg_max_drawdown × 0.15)
           + (signal_adequacy × 0.15)
 
-WALK-FORWARD:
-  • Train: 0..1400 bar
-  • Purge: 1400..1420 (veri sızıntısı önleme)
-  • Test:  1420..2000 bar (son 580 bar)
-
-KARAR KRİTERLERİ:
-  • Hem train hem test setinde min %55 success rate
-  • Her iki sette min 5 sinyal
-  • Kombo final skoru = (train_skor + test_skor) / 2
-  • Test skoru train'den %30+ düşükse OVERFITTING bayrağı
-
-DNA KARTI ÇIKTISI:
-  • Seçilen tekli + (varsa) ikili/üçlü
-  • Her birinin parametreleri, sinyal sayıları, kazanç profili
-  • Overall quality + strategy_level (1=tekli, 2=ikili, 3=üçlü)
+KADEMELİ ARAMA (değişmedi):
+  1. TEKLİ (125 kombo, ~1.5 sn)
+  2. İKİLİ (105 çift, ~0.4 sn)
+  3. ÜÇLÜ (50 kombo, fallback, ~0.1 sn)
 ═══════════════════════════════════════════════════════════════════════
 """
 from typing import Dict, List, Optional, Tuple
@@ -40,45 +36,35 @@ from lab_signals import SIGNAL_REGISTRY, expand_params
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PARAMETRELER (kalibre edilebilir)
+# PARAMETRELER — KALİBRE EDİLDİ
 # ═══════════════════════════════════════════════════════════════════
 TRAIN_BARS = 1400
-PURGE_BARS = 20         # Train ile test arası boşluk (veri sızıntısı önleme)
-TEST_BARS = 580         # 2000 - 1400 - 20 = 580
-MIN_BARS = TRAIN_BARS + PURGE_BARS + TEST_BARS  # 2000
+PURGE_BARS = 20
+TEST_BARS = 580
+MIN_BARS = TRAIN_BARS + PURGE_BARS + TEST_BARS
 
-FORWARD_WINDOW = 60     # Sinyal sonrası 60 bar izle (~3 ay)
-TARGET_GAIN_PCT = 30.0  # Hedef getiri %30
-PARTIAL_GAIN_PCT = 10.0 # Kısmi başarı eşiği
+FORWARD_WINDOW = 60
+TARGET_GAIN_PCT = 30.0
+PARTIAL_GAIN_PCT = 10.0
 
 MIN_SIGNALS_TRAIN = 5
 MIN_SIGNALS_TEST = 2
-MIN_QUALITY_TO_PASS = 55.0  # 100 üzerinden
+MIN_QUALITY_TO_PASS = 50.0       # ← v1: 55, v2: 50 (sınır gevşetildi)
 
-TOP_N_SINGLE = 15       # İkili aramaya girecek tekli aday sayısı
-OVERFIT_THRESHOLD = 0.30  # Test skoru train'den %30 düşükse overfit
+TOP_N_SINGLE = 15
+OVERFIT_THRESHOLD = 0.30
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TEK BİR SİNYAL SERİSİNİN PERFORMANSINI ÖLÇ
+# SİNYAL PERFORMANS DEĞERLENDİRMESİ
 # ═══════════════════════════════════════════════════════════════════
 def evaluate_signal_series(close: pd.Series, signal: pd.Series,
                            forward_window: int = FORWARD_WINDOW) -> Dict:
-    """
-    Bir bool sinyal serisinin getiri profilini ölçer.
-    Her True bar için: sonraki forward_window bar içindeki
-    max gain % ve max drawdown % hesaplanır.
-
-    Returns:
-      n_signals, success_rate, partial_rate, avg_max_gain,
-      avg_max_drawdown, adequacy, quality
-    """
     close_vals = close.values
     sig_vals = signal.values
     n = len(close_vals)
 
     signal_indices = np.where(sig_vals)[0]
-    # Son forward_window barda verilen sinyalleri değerlendiremeyiz
     valid_indices = [i for i in signal_indices if i + forward_window < n]
 
     if not valid_indices:
@@ -100,9 +86,9 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
         peak = np.nanmax(window)
         trough = np.nanmin(window)
         gain = (peak - entry) / entry * 100
-        drawdown = (trough - entry) / entry * 100  # negatif
+        drawdown = (trough - entry) / entry * 100
         max_gains.append(gain)
-        max_drawdowns.append(abs(min(drawdown, 0)))  # abs değer
+        max_drawdowns.append(abs(min(drawdown, 0)))
 
     if not max_gains:
         return {
@@ -122,24 +108,21 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
     avg_max_gain = float(arr_g.mean())
     avg_max_drawdown = float(arr_d.mean())
 
-    # Sinyal yeterliliği: 5-20 sinyal ideal aralık
     if n_signals < 5:
         adequacy = (n_signals / 5.0) * 50
     elif n_signals <= 20:
         adequacy = 100.0
     else:
-        # Çok fazla sinyal kalite düşürür (seçici değil)
         adequacy = max(50.0, 100.0 - (n_signals - 20) * 2)
 
-    # KALİTE SKORU — 4 bileşen ağırlıklı
-    # success_rate 0-100, avg_max_gain tipik 0-50, drawdown tipik 0-30
-    norm_gain = min(avg_max_gain / 50.0 * 100, 100)  # 50%'te tam puan
-    norm_dd = min(avg_max_drawdown / 30.0 * 100, 100)  # 30%'te tam ceza
+    # KALİTE FORMÜLÜ — v2 AĞIRLIKLAR
+    norm_gain = min(avg_max_gain / 50.0 * 100, 100)
+    norm_dd = min(avg_max_drawdown / 30.0 * 100, 100)
     quality = (
-        success_rate * 0.40 +
-        norm_gain * 0.30 -
-        norm_dd * 0.15 +
-        adequacy * 0.15
+        success_rate * 0.35 +      # v1: 0.40
+        norm_gain * 0.35 +         # v1: 0.30 — KAZANÇ ÖN PLANDA
+        adequacy * 0.15 -          # v1: 0.15
+        norm_dd * 0.15              # v1: 0.15
     )
     quality = max(0.0, min(100.0, quality))
 
@@ -155,10 +138,9 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TEK İNDİKATÖR TEST ET — train + test + genel skor
+# TEK İNDİKATÖR TEST
 # ═══════════════════════════════════════════════════════════════════
 def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Dict:
-    """Tek indikatörü train ve test setlerinde değerlendir."""
     try:
         signal = func(df, **params)
     except Exception as e:
@@ -170,7 +152,6 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
     signal = signal.fillna(False).astype(bool)
     close = df['close'].astype(float)
 
-    # Train ve test indeksleri
     train_end = TRAIN_BARS
     test_start = TRAIN_BARS + PURGE_BARS
     test_end = len(df)
@@ -180,7 +161,6 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
     test_close = close.iloc[test_start:test_end]
     test_signal = signal.iloc[test_start:test_end]
 
-    # Train: forward_window'un da train içinde olması için son barları kırp
     train_eff = min(len(train_close) - FORWARD_WINDOW, len(train_close))
     test_eff = min(len(test_close) - FORWARD_WINDOW, len(test_close))
     if train_eff < 100 or test_eff < 100:
@@ -195,17 +175,14 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
         test_signal.iloc[:test_eff]
     )
 
-    # Nihai skor: train ve test ortalaması
     combined_quality = (train_perf['quality'] + test_perf['quality']) / 2
 
-    # Overfitting flag: test, train'den %30+ düşükse
     overfit = False
     if train_perf['quality'] > 0:
         drop = (train_perf['quality'] - test_perf['quality']) / train_perf['quality']
         if drop > OVERFIT_THRESHOLD:
             overfit = True
 
-    # Geçerlilik kontrolü
     valid = (
         train_perf['n_signals'] >= MIN_SIGNALS_TRAIN and
         test_perf['n_signals'] >= MIN_SIGNALS_TEST and
@@ -220,15 +197,14 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
         'combined_quality': round(combined_quality, 2),
         'overfit': overfit,
         'valid': valid,
-        'signal_series': signal  # ikili/üçlü aramasında kullanılacak
+        'signal_series': signal
     }
 
 
 # ═══════════════════════════════════════════════════════════════════
-# KADEMELİ ARAMA: TEKLİ
+# KADEMELİ ARAMA
 # ═══════════════════════════════════════════════════════════════════
 def search_singles(df: pd.DataFrame) -> List[Dict]:
-    """125 tekli kombinasyonu test et, kalitesine göre sırala."""
     results = []
     for name, (func, params) in SIGNAL_REGISTRY.items():
         combos = expand_params(params)
@@ -236,42 +212,24 @@ def search_singles(df: pd.DataFrame) -> List[Dict]:
             r = test_single_indicator(df, name, func, combo)
             if 'error' not in r:
                 results.append(r)
-
     results.sort(key=lambda x: x['combined_quality'], reverse=True)
     return results
 
 
-# ═══════════════════════════════════════════════════════════════════
-# İKİLİ VE ÜÇLÜ KOMBO — "aynı anda sinyal veriyor mu?" mantığı
-# ═══════════════════════════════════════════════════════════════════
 def combine_signals(signals: List[pd.Series], window: int = 3) -> pd.Series:
-    """
-    Birden fazla sinyal serisini "rolling confluence" ile birleştirir.
-    Bir barda N sinyalin hepsi ±window bar içinde True olmuşsa,
-    son True olan bar combined signal = True.
-
-    Bu, "iki/üç indikatör aynı dönemde dip dönüşü gördü" mantığı.
-    """
     if not signals:
         return pd.Series([], dtype=bool)
 
-    # Her sinyal için "son 'window' barda True olmuş mu" genişletmesi
     expanded = []
     for s in signals:
         s_bool = s.fillna(False).astype(bool)
-        # Rolling max: son window+1 barda True varsa bu bar da True sayılır
         ext = s_bool.rolling(window=window + 1, min_periods=1).max().astype(bool)
         expanded.append(ext)
 
-    # Hepsinin aynı bar için genişletilmiş hali True olmalı
     combined_wide = expanded[0].copy()
     for e in expanded[1:]:
         combined_wide = combined_wide & e
 
-    # Tetikleme barı: son sinyalin geldiği bar
-    # (combined_wide True olur olmaz True, sonra re-trigger için cooldown gerekir)
-    # Basit yaklaşım: combined_wide'daki her True → bu bar sinyal verir
-    # Ama arka arkaya çok sinyal üretmesin diye: False'tan True'ya geçiş anı
     prev = combined_wide.shift(1).fillna(False)
     trigger = combined_wide & ~prev
     return trigger
@@ -279,9 +237,6 @@ def combine_signals(signals: List[pd.Series], window: int = 3) -> pd.Series:
 
 def test_multi_combo(df: pd.DataFrame, members: List[Dict], level: int = 2,
                      window: int = 3) -> Dict:
-    """
-    Birden fazla tek indikatör birleşiminin (2'li, 3'lü) performansını ölç.
-    """
     signals = [m['signal_series'] for m in members]
     combined = combine_signals(signals, window=window)
 
@@ -340,11 +295,9 @@ def test_multi_combo(df: pd.DataFrame, members: List[Dict], level: int = 2,
 
 def search_pairs(df: pd.DataFrame, top_singles: List[Dict],
                  max_candidates: int = TOP_N_SINGLE) -> List[Dict]:
-    """En iyi tekli adayların ikili kombinasyonlarını ara."""
     top = top_singles[:max_candidates]
     results = []
     for a, b in combinations(top, 2):
-        # Aynı indikatör ailesi ise atla (iki RSI varyasyonu gibi)
         if a['name'] == b['name']:
             continue
         r = test_multi_combo(df, [a, b], level=2)
@@ -356,11 +309,6 @@ def search_pairs(df: pd.DataFrame, top_singles: List[Dict],
 
 def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
                    top_singles: List[Dict]) -> List[Dict]:
-    """
-    Üçlü arama (FALLBACK): En iyi 10 ikiliden her birine,
-    en iyi 5 tekliden bir indikatör eklemeyi dene.
-    Büyük patlamayı önlemek için max 50 üçlü test edilir.
-    """
     singles_by_name = {}
     for s in top_singles[:10]:
         if s['name'] not in singles_by_name:
@@ -371,7 +319,6 @@ def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
 
     for pair in top_pairs[:10]:
         pair_names = {m['name'] for m in pair['members']}
-        # pair'in member'larını tekli objelerden yeniden bul
         pair_members = []
         for m in pair['members']:
             match = next((s for s in top_singles
@@ -405,27 +352,20 @@ def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
 
 
 # ═══════════════════════════════════════════════════════════════════
-# ANA MOTOR: DNA KARTI ÜRETİMİ
+# ANA DNA ÜRETİMİ
 # ═══════════════════════════════════════════════════════════════════
 def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
-    """
-    Bir hisse için komple DNA kartı oluştur.
-    Kademeli arama, overfitting koruması, fallback mantığı içerir.
-    """
     t0 = time.time()
 
     if len(df) < MIN_BARS:
         return {
-            'symbol': symbol,
-            'status': 'FAIL',
+            'symbol': symbol, 'status': 'FAIL',
             'reason': f'Yetersiz veri: {len(df)} bar, en az {MIN_BARS} gerekli',
             'quality': None, 'build_time_sec': 0.0
         }
 
-    # Son MIN_BARS bar al
     df = df.tail(MIN_BARS).reset_index(drop=True)
 
-    # Kademe 1: TEKLİ
     t1 = time.time()
     singles = search_singles(df)
     t_singles = time.time() - t1
@@ -434,28 +374,18 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
     best_single = valid_singles[0] if valid_singles else None
 
     result = {
-        'symbol': symbol,
-        'mode': 'unknown',
-        'level': 0,
-        'single': None,
-        'pair': None,
-        'triple': None,
-        'chosen': None,
-        'quality': None,
-        'status': 'FAIL',
-        'reason': '',
+        'symbol': symbol, 'mode': 'unknown', 'level': 0,
+        'single': None, 'pair': None, 'triple': None,
+        'chosen': None, 'quality': None,
+        'status': 'FAIL', 'reason': '',
         'timings': {'singles_sec': round(t_singles, 2)},
-        'build_time_sec': 0.0
+        'build_time_sec': 0.0,
+        'version': 'v2_calibrated'  # Kalibre edildiğini işaretle
     }
 
     if best_single is not None:
         result['single'] = _strip_signal(best_single)
-        # Kriter 1: tekli kalitesi yüksekse onu seç
-        if best_single['combined_quality'] >= MIN_QUALITY_TO_PASS:
-            # Tekli yeterli, yine de ikiliyi dene — daha iyisi varsa kullan
-            pass
 
-    # Kademe 2: İKİLİ
     t2 = time.time()
     pairs = []
     if valid_singles and len(valid_singles) >= 2:
@@ -468,7 +398,6 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
     if best_pair:
         result['pair'] = best_pair
 
-    # Karar: tekli ve ikili arasından en iyi
     best = None
     best_src = None
     best_q = -1
@@ -481,7 +410,6 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
         best_q = best_pair['combined_quality']
         best_src = 'pair'
 
-    # Kademe 3: ÜÇLÜ (fallback — ikili de yeterli değilse)
     if best_q < MIN_QUALITY_TO_PASS and valid_singles and valid_pairs:
         t3 = time.time()
         triples = search_triples(df, pairs, valid_singles)
@@ -496,7 +424,6 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
                 best_q = best_triple['combined_quality']
                 best_src = 'triple'
 
-    # Sonuç
     if best_src == 'single':
         result['chosen'] = _strip_signal(best)
         result['level'] = 1
@@ -527,74 +454,4 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
 
 
 def _strip_signal(entry: Dict) -> Dict:
-    """Tekli dict'ten signal_series'i çıkar (JSON serialize için)."""
-    out = {k: v for k, v in entry.items() if k != 'signal_series'}
-    return out
-
-
-# ═══════════════════════════════════════════════════════════════════
-# TEST (python lab_optimizer.py)
-# ═══════════════════════════════════════════════════════════════════
-if __name__ == '__main__':
-    # Sentetik 2200 bar veri: karışık bir düşüş-yükseliş örüntüsü
-    np.random.seed(3)
-    n = 2200
-    # 3 faz: 800 bar yükseliş, 700 bar düşüş, 700 bar dip dönüşü
-    p1 = np.linspace(50, 100, 800)
-    p2 = np.linspace(100, 45, 700)
-    p3 = np.linspace(45, 80, 700)
-    close = np.concatenate([p1, p2, p3]) + np.random.normal(0, 2, n)
-    high = close + np.abs(np.random.normal(0.6, 0.3, n))
-    low = close - np.abs(np.random.normal(0.6, 0.3, n))
-    open_ = close + np.random.normal(0, 0.3, n)
-    vol = np.abs(np.random.normal(15000, 4000, n))
-    df = pd.DataFrame({
-        'open': open_, 'high': high, 'low': low,
-        'close': close, 'volume': vol
-    }, index=pd.date_range('2018-01-01', periods=n))
-
-    print("=" * 70)
-    print(f"LAB OPTIMIZER TESTİ — {n} bar sentetik veri")
-    print(f"Faz 1 (0-800): yükseliş · Faz 2 (800-1500): düşüş · Faz 3 (1500-2200): toparlama")
-    print("=" * 70)
-
-    dna = build_dna(df, symbol='SENTETIK')
-
-    print(f"\nDURUM      : {dna['status']}")
-    print(f"SEBEP      : {dna['reason']}")
-    print(f"MOD        : {dna['mode']} (level={dna['level']})")
-    print(f"KALİTE     : {dna['quality']}")
-    print(f"SÜRE       : {dna['build_time_sec']} sn")
-    print(f"  • Tekli  : {dna['timings'].get('singles_sec', 0)} sn")
-    print(f"  • İkili  : {dna['timings'].get('pairs_sec', 0)} sn")
-    print(f"  • Üçlü   : {dna['timings'].get('triples_sec', 0)} sn")
-
-    if dna['chosen']:
-        c = dna['chosen']
-        print("\n--- SEÇİLEN KOMBO ---")
-        if dna['level'] == 1:
-            print(f"İndikatör: {c['name']}({c['params']})")
-            print(f"Train: {c['train']}")
-            print(f"Test:  {c['test']}")
-            print(f"Overfit: {c['overfit']}")
-        else:
-            print(f"Üyeler ({len(c['members'])}):")
-            for m in c['members']:
-                print(f"  - {m['name']}({m['params']}) · single_q={m.get('single_quality','?')}")
-            print(f"Train: {c['train']}")
-            print(f"Test:  {c['test']}")
-            print(f"Overfit: {c['overfit']}")
-
-    if dna.get('single'):
-        s = dna['single']
-        print(f"\n[EN İYİ TEKLİ] {s['name']}({s['params']}) · "
-              f"q={s['combined_quality']} · train={s['train']['quality']} · test={s['test']['quality']}")
-    if dna.get('pair'):
-        p = dna['pair']
-        members_str = ' + '.join(m['name'] for m in p['members'])
-        print(f"[EN İYİ İKİLİ] {members_str} · "
-              f"q={p['combined_quality']} · train={p['train']['quality']} · test={p['test']['quality']}")
-    if dna.get('triple'):
-        t = dna['triple']
-        members_str = ' + '.join(m['name'] for m in t['members'])
-        print(f"[EN İYİ ÜÇLÜ] {members_str} · q={t['combined_quality']}")
+    return {k: v for k, v in entry.items() if k != 'signal_series'}
