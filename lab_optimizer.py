@@ -1,30 +1,36 @@
 """
-═══════════════════════════════════════════════════════════════════════
-FRAKTAL KAHİN LAB — AŞAMA 2b: KALİBRE EDİLMİŞ OPTIMIZER
-───────────────────────────────────────────────────────────────────────
-v1'den FARKI (CANLI TEST SONUCUNA GÖRE KALİBRE):
-  • MIN_QUALITY_TO_PASS: 55 → 50 (sınırdaki iyi DNAları kaybetmiyoruz)
-  • Kalite formülünde kazanç ağırlığı: 0.30 → 0.35 
-  • Başarı ağırlığı: 0.40 → 0.35 (kazanç öne çıkıyor)
-  • Drawdown cezası: 0.15 → 0.15 (aynı kaldı, risk korunuyor)
-  • Sinyal yeterliliği: 0.15 → 0.15 (aynı kaldı)
+═══════════════════════════════════════════════════════════════════════════
+FRAKTAL KAHİN LAB — AŞAMA 2c: YARATICI V3 (3 büyük iyileştirme)
+───────────────────────────────────────────────────────────────────────────
 
-ÖNCEKİ SONUÇLAR:
-  TKNSA   → OK (57.45)  ✓
-  ASUZU   → ZAYIF (54.1)  — yeni eşikte OK olacak
-  THYAO   → ZAYIF (45.1)  — düşük kalite, sistem doğru tespit ediyor
+V3'TE GELENLER:
 
-KALİTE SKORU YENİ FORMÜLÜ:
-  quality = (success_rate × 0.35)
-          + (avg_max_gain × 0.35)    ← daha yüksek kazanç = daha yüksek skor
-          - (avg_max_drawdown × 0.15)
-          + (signal_adequacy × 0.15)
+[1] VOLATILITY-ADAPTIVE PARAMETERS (Oynaklığa Uyumlu)
+    Hissenin ATR/fiyat oranına bakıp parametre ızgarasını seçer:
+      • Yüksek oynaklık → hızlı parametreler (RSI 7, EMA 10)
+      • Düşük oynaklık → yavaş parametreler (RSI 30, EMA 200)
+    Böylece ULUUN gibi yavaş hisseler için haftalık benzeri tepkiler üretir.
 
-KADEMELİ ARAMA (değişmedi):
-  1. TEKLİ (125 kombo, ~1.5 sn)
-  2. İKİLİ (105 çift, ~0.4 sn)
-  3. ÜÇLÜ (50 kombo, fallback, ~0.1 sn)
-═══════════════════════════════════════════════════════════════════════
+[2] ENSEMBLE VOTING (Topluluk Oylama)
+    Tek DNA yerine en iyi 3 kombinasyon saklanır. Canlıda sinyal için
+    3 komitenin en az 2'si aynı bar civarında onay vermeli. Bu lucky
+    shot'ları eler, ULUUN/TCELL gibi zorlu hisselerde güvenlik artırır.
+
+[3] FITNESS LANDSCAPE ANALYSIS (Uygunluk Haritası)
+    Bir kombinasyonun "komşuları" da kontrol edilir. Eğer:
+      • Seçilen kombo yalnız zirve → ROBUST=False, bayrak kaldırılır
+      • Komşular da iyi çıkıyor → ROBUST=True, gerçek dayanıklı kombo
+    Overfitting'e karşı matematiksel koruma.
+
+YENİ STATUS KATEGORİLERİ:
+  • GÜÇLÜ   — kalite ≥ 60, robust=True, ensemble confidence ≥ 0.66
+  • OK      — kalite ≥ 50
+  • ZAYIF   — kalite ≥ 40, ama bilgilendirici (hâlâ öneri niteliğinde)
+  • FAIL    — kalite < 40 veya geçerli kombo bulunamadı
+
+KALİTE FORMÜLÜ:
+  quality = success_rate×0.35 + avg_gain×0.35 + adequacy×0.15 - drawdown×0.15
+═══════════════════════════════════════════════════════════════════════════
 """
 from typing import Dict, List, Optional, Tuple
 from itertools import combinations
@@ -35,9 +41,9 @@ import pandas as pd
 from lab_signals import SIGNAL_REGISTRY, expand_params
 
 
-# ═══════════════════════════════════════════════════════════════════
-# PARAMETRELER — KALİBRE EDİLDİ
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
+# SABİTLER
+# ═══════════════════════════════════════════════════════════════════════
 TRAIN_BARS = 1400
 PURGE_BARS = 20
 TEST_BARS = 580
@@ -49,15 +55,101 @@ PARTIAL_GAIN_PCT = 10.0
 
 MIN_SIGNALS_TRAIN = 5
 MIN_SIGNALS_TEST = 2
-MIN_QUALITY_TO_PASS = 50.0       # ← v1: 55, v2: 50 (sınır gevşetildi)
-
-TOP_N_SINGLE = 15
+MIN_QUALITY_TO_PASS = 50.0
+MIN_QUALITY_STRONG = 60.0
+MIN_QUALITY_WEAK = 40.0
 OVERFIT_THRESHOLD = 0.30
 
+TOP_N_SINGLE = 15
+ENSEMBLE_SIZE = 3          # Sakla en iyi 3 kombo
+ENSEMBLE_MIN_VOTES = 2     # 3'ten 2'si onay vermeli
 
-# ═══════════════════════════════════════════════════════════════════
+# [1] VOLATILITY-ADAPTIVE — Oynaklık sınıfları
+VOL_LOW_THRESHOLD = 1.5     # ATR/close × 100 < 1.5 → düşük
+VOL_HIGH_THRESHOLD = 3.5    # > 3.5 → yüksek
+
+# [3] FITNESS LANDSCAPE — Robustluk analizi
+ROBUST_NEIGHBOR_COUNT = 5   # Top 5 komşuya bak
+ROBUST_MIN_GOOD_RATIO = 0.4 # %40'ı iyi ise robust
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# [1] VOLATILITY-ADAPTIVE PARAMETER GRID
+# ═══════════════════════════════════════════════════════════════════════
+def classify_volatility(df: pd.DataFrame, lookback: int = 30) -> str:
+    """
+    Hissenin oynaklık karakterini tespit et.
+    Döner: 'LOW', 'NORMAL', 'HIGH'
+    """
+    high = df['high'].astype(float)
+    low = df['low'].astype(float)
+    close = df['close'].astype(float)
+
+    # Basit True Range son lookback bar
+    prev_close = close.shift(1)
+    tr = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs()
+    ], axis=1).max(axis=1)
+
+    recent_tr = tr.tail(lookback).mean()
+    recent_price = close.tail(lookback).mean()
+    if recent_price <= 0 or pd.isna(recent_price):
+        return 'NORMAL'
+
+    atr_pct = recent_tr / recent_price * 100
+
+    if atr_pct < VOL_LOW_THRESHOLD:
+        return 'LOW'
+    elif atr_pct > VOL_HIGH_THRESHOLD:
+        return 'HIGH'
+    else:
+        return 'NORMAL'
+
+
+def adapt_params_for_volatility(params: Dict, vol_class: str) -> Dict:
+    """
+    Oynaklık sınıfına göre parametre ızgarasını uyarla.
+    
+    LOW  → yavaş parametreler öne çıkar (length artar, oversold gevşer)
+    HIGH → hızlı parametreler öne çıkar (length azalır, oversold sıkı)
+    NORMAL → aynı kalır
+    """
+    if vol_class == 'NORMAL':
+        return params
+
+    adapted = {}
+    for key, values in params.items():
+        if not isinstance(values, list):
+            adapted[key] = values
+            continue
+
+        if vol_class == 'LOW' and key == 'length':
+            # Düşük oynaklıkta uzun periyot tercih et
+            adapted[key] = sorted([v for v in values if v >= 14], reverse=False)
+            if not adapted[key]:
+                adapted[key] = values
+        elif vol_class == 'HIGH' and key == 'length':
+            # Yüksek oynaklıkta kısa periyot tercih et
+            adapted[key] = sorted([v for v in values if v <= 21])
+            if not adapted[key]:
+                adapted[key] = values
+        elif vol_class == 'LOW' and key == 'oversold':
+            # Düşük oynaklıkta eşiği gevşet
+            if values and all(isinstance(v, (int, float)) for v in values):
+                adapted[key] = values  # aynı, daha agresif arama
+            else:
+                adapted[key] = values
+        else:
+            adapted[key] = values
+
+    return adapted
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # SİNYAL PERFORMANS DEĞERLENDİRMESİ
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 def evaluate_signal_series(close: pd.Series, signal: pd.Series,
                            forward_window: int = FORWARD_WINDOW) -> Dict:
     close_vals = close.values
@@ -68,14 +160,9 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
     valid_indices = [i for i in signal_indices if i + forward_window < n]
 
     if not valid_indices:
-        return {
-            'n_signals': 0, 'success_rate': 0.0, 'partial_rate': 0.0,
-            'avg_max_gain': 0.0, 'avg_max_drawdown': 0.0,
-            'adequacy': 0.0, 'quality': 0.0
-        }
+        return _empty_perf()
 
-    max_gains = []
-    max_drawdowns = []
+    max_gains, max_drawdowns = [], []
     for idx in valid_indices:
         entry = close_vals[idx]
         if entry <= 0 or np.isnan(entry):
@@ -91,11 +178,7 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
         max_drawdowns.append(abs(min(drawdown, 0)))
 
     if not max_gains:
-        return {
-            'n_signals': 0, 'success_rate': 0.0, 'partial_rate': 0.0,
-            'avg_max_gain': 0.0, 'avg_max_drawdown': 0.0,
-            'adequacy': 0.0, 'quality': 0.0
-        }
+        return _empty_perf()
 
     n_signals = len(max_gains)
     arr_g = np.array(max_gains)
@@ -115,14 +198,13 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
     else:
         adequacy = max(50.0, 100.0 - (n_signals - 20) * 2)
 
-    # KALİTE FORMÜLÜ — v2 AĞIRLIKLAR
     norm_gain = min(avg_max_gain / 50.0 * 100, 100)
     norm_dd = min(avg_max_drawdown / 30.0 * 100, 100)
     quality = (
-        success_rate * 0.35 +      # v1: 0.40
-        norm_gain * 0.35 +         # v1: 0.30 — KAZANÇ ÖN PLANDA
-        adequacy * 0.15 -          # v1: 0.15
-        norm_dd * 0.15              # v1: 0.15
+        success_rate * 0.35 +
+        norm_gain * 0.35 +
+        adequacy * 0.15 -
+        norm_dd * 0.15
     )
     quality = max(0.0, min(100.0, quality))
 
@@ -137,10 +219,20 @@ def evaluate_signal_series(close: pd.Series, signal: pd.Series,
     }
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TEK İNDİKATÖR TEST
-# ═══════════════════════════════════════════════════════════════════
-def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Dict:
+def _empty_perf() -> Dict:
+    return {
+        'n_signals': 0, 'success_rate': 0.0, 'partial_rate': 0.0,
+        'avg_max_gain': 0.0, 'avg_max_drawdown': 0.0,
+        'adequacy': 0.0, 'quality': 0.0
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TEK İNDİKATÖR TESTİ
+# ═══════════════════════════════════════════════════════════════════════
+def test_single_indicator(df: pd.DataFrame, name: str, func,
+                          params: Dict,
+                          min_sig_test: int = MIN_SIGNALS_TEST) -> Dict:
     try:
         signal = func(df, **params)
     except Exception as e:
@@ -154,12 +246,11 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
 
     train_end = TRAIN_BARS
     test_start = TRAIN_BARS + PURGE_BARS
-    test_end = len(df)
 
     train_close = close.iloc[:train_end]
     train_signal = signal.iloc[:train_end]
-    test_close = close.iloc[test_start:test_end]
-    test_signal = signal.iloc[test_start:test_end]
+    test_close = close.iloc[test_start:]
+    test_signal = signal.iloc[test_start:]
 
     train_eff = min(len(train_close) - FORWARD_WINDOW, len(train_close))
     test_eff = min(len(test_close) - FORWARD_WINDOW, len(test_close))
@@ -185,31 +276,84 @@ def test_single_indicator(df: pd.DataFrame, name: str, func, params: Dict) -> Di
 
     valid = (
         train_perf['n_signals'] >= MIN_SIGNALS_TRAIN and
-        test_perf['n_signals'] >= MIN_SIGNALS_TEST and
+        test_perf['n_signals'] >= min_sig_test and
         not overfit
     )
 
     return {
-        'name': name,
-        'params': params,
-        'train': train_perf,
-        'test': test_perf,
+        'name': name, 'params': params,
+        'train': train_perf, 'test': test_perf,
         'combined_quality': round(combined_quality, 2),
-        'overfit': overfit,
-        'valid': valid,
+        'overfit': overfit, 'valid': valid,
         'signal_series': signal
     }
 
 
-# ═══════════════════════════════════════════════════════════════════
-# KADEMELİ ARAMA
-# ═══════════════════════════════════════════════════════════════════
-def search_singles(df: pd.DataFrame) -> List[Dict]:
+# ═══════════════════════════════════════════════════════════════════════
+# [3] FITNESS LANDSCAPE — Robustluk Analizi
+# ═══════════════════════════════════════════════════════════════════════
+def analyze_robustness(all_singles: List[Dict], target: Dict,
+                       n_neighbors: int = ROBUST_NEIGHBOR_COUNT) -> Dict:
+    """
+    Seçilen kombonun 'komşu' kombinasyonlarını kontrol et.
+    Eğer aynı indikatör ailesinden başka parametreler de iyi çıkıyorsa
+    → robust (dayanıklı, rastlantı değil).
+    Yalnız zirve ise → lucky shot, robust=False.
+    """
+    target_name = target.get('name')
+    if not target_name:
+        return {'is_robust': True, 'neighbor_score': 0.0, 'reason': 'pass'}
+
+    # Aynı indikatör ailesinden diğer parametrelerin skorları
+    family = [s for s in all_singles if s['name'] == target_name]
+    family_qualities = [s['combined_quality'] for s in family]
+
+    if len(family) < 2:
+        return {'is_robust': True, 'neighbor_score': 0.0,
+                'reason': 'tek varyasyon var, robustluk değerlendirilemedi'}
+
+    target_q = target['combined_quality']
+    if target_q <= 0:
+        return {'is_robust': False, 'neighbor_score': 0.0,
+                'reason': 'hedef kalitesi sıfır'}
+
+    # Komşu kalitelerinin ortalaması
+    neighbor_avg = np.mean([q for q in family_qualities
+                            if q != target_q]) if len(family) > 1 else 0
+
+    # Komşu kalitelerinin, hedef kalitesine oranı
+    # 1.0'a yakın = komşular da iyi (robust)
+    # 0.5 altı = yalnız zirve (lucky shot)
+    neighbor_ratio = (neighbor_avg / target_q) if target_q > 0 else 0
+
+    is_robust = neighbor_ratio >= 0.55
+    reason = (
+        f'komşu oran={neighbor_ratio:.2f} ' +
+        ('(dayanıklı)' if is_robust else '(yalnız zirve — lucky shot riski)')
+    )
+
+    return {
+        'is_robust': is_robust,
+        'neighbor_score': round(neighbor_ratio, 3),
+        'neighbor_avg_quality': round(neighbor_avg, 2),
+        'family_size': len(family),
+        'reason': reason
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# KADEMELİ ARAMA (Volatility-Adaptive)
+# ═══════════════════════════════════════════════════════════════════════
+def search_singles(df: pd.DataFrame, vol_class: str = 'NORMAL',
+                   min_sig_test: int = MIN_SIGNALS_TEST) -> List[Dict]:
+    """Tekli arama, oynaklığa uyarlı."""
     results = []
     for name, (func, params) in SIGNAL_REGISTRY.items():
-        combos = expand_params(params)
+        # [1] VOLATILITY-ADAPTIVE: parametre ızgarasını oynaklığa göre filtrele
+        adapted_params = adapt_params_for_volatility(params, vol_class)
+        combos = expand_params(adapted_params)
         for combo in combos:
-            r = test_single_indicator(df, name, func, combo)
+            r = test_single_indicator(df, name, func, combo, min_sig_test)
             if 'error' not in r:
                 results.append(r)
     results.sort(key=lambda x: x['combined_quality'], reverse=True)
@@ -236,19 +380,19 @@ def combine_signals(signals: List[pd.Series], window: int = 3) -> pd.Series:
 
 
 def test_multi_combo(df: pd.DataFrame, members: List[Dict], level: int = 2,
-                     window: int = 3) -> Dict:
+                     window: int = 3,
+                     min_sig_test: int = MIN_SIGNALS_TEST) -> Dict:
     signals = [m['signal_series'] for m in members]
     combined = combine_signals(signals, window=window)
 
     close = df['close'].astype(float)
     train_end = TRAIN_BARS
     test_start = TRAIN_BARS + PURGE_BARS
-    test_end = len(df)
 
     train_close = close.iloc[:train_end]
     train_signal = combined.iloc[:train_end]
-    test_close = close.iloc[test_start:test_end]
-    test_signal = combined.iloc[test_start:test_end]
+    test_close = close.iloc[test_start:]
+    test_signal = combined.iloc[test_start:]
 
     train_eff = len(train_close) - FORWARD_WINDOW
     test_eff = len(test_close) - FORWARD_WINDOW
@@ -273,7 +417,7 @@ def test_multi_combo(df: pd.DataFrame, members: List[Dict], level: int = 2,
 
     valid = (
         train_perf['n_signals'] >= MIN_SIGNALS_TRAIN and
-        test_perf['n_signals'] >= MIN_SIGNALS_TEST and
+        test_perf['n_signals'] >= min_sig_test and
         not overfit
     )
 
@@ -284,23 +428,22 @@ def test_multi_combo(df: pd.DataFrame, members: List[Dict], level: int = 2,
              'single_quality': m['combined_quality']}
             for m in members
         ],
-        'train': train_perf,
-        'test': test_perf,
+        'train': train_perf, 'test': test_perf,
         'combined_quality': round(combined_quality, 2),
-        'overfit': overfit,
-        'valid': valid,
+        'overfit': overfit, 'valid': valid,
         'window': window
     }
 
 
 def search_pairs(df: pd.DataFrame, top_singles: List[Dict],
-                 max_candidates: int = TOP_N_SINGLE) -> List[Dict]:
+                 max_candidates: int = TOP_N_SINGLE,
+                 min_sig_test: int = MIN_SIGNALS_TEST) -> List[Dict]:
     top = top_singles[:max_candidates]
     results = []
     for a, b in combinations(top, 2):
         if a['name'] == b['name']:
             continue
-        r = test_multi_combo(df, [a, b], level=2)
+        r = test_multi_combo(df, [a, b], level=2, min_sig_test=min_sig_test)
         if 'error' not in r:
             results.append(r)
     results.sort(key=lambda x: x['combined_quality'], reverse=True)
@@ -308,7 +451,8 @@ def search_pairs(df: pd.DataFrame, top_singles: List[Dict],
 
 
 def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
-                   top_singles: List[Dict]) -> List[Dict]:
+                   top_singles: List[Dict],
+                   min_sig_test: int = MIN_SIGNALS_TEST) -> List[Dict]:
     singles_by_name = {}
     for s in top_singles[:10]:
         if s['name'] not in singles_by_name:
@@ -339,7 +483,8 @@ def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
                 continue
             tested_keys.add(key)
 
-            r = test_multi_combo(df, triple_members, level=3)
+            r = test_multi_combo(df, triple_members, level=3,
+                                 min_sig_test=min_sig_test)
             if 'error' not in r:
                 results.append(r)
             if len(tested_keys) >= 50:
@@ -351,9 +496,45 @@ def search_triples(df: pd.DataFrame, top_pairs: List[Dict],
     return results
 
 
-# ═══════════════════════════════════════════════════════════════════
-# ANA DNA ÜRETİMİ
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
+# [2] ENSEMBLE — Top 3 kombinasyonu sakla
+# ═══════════════════════════════════════════════════════════════════════
+def build_ensemble(all_candidates: List[Dict],
+                   size: int = ENSEMBLE_SIZE) -> List[Dict]:
+    """
+    En iyi 'size' adet valid kombinasyonu seç, birbirinden çeşitli olsun:
+    Aynı indikatör ailesinden en fazla 2 seçer.
+    """
+    ensemble = []
+    family_count = {}
+
+    for cand in all_candidates:
+        if not cand.get('valid'):
+            continue
+
+        # İndikatör aile(lerin)ini çıkar
+        if 'members' in cand:
+            names = tuple(sorted(m['name'] for m in cand['members']))
+        else:
+            names = (cand.get('name', 'unknown'),)
+
+        key = names
+        if family_count.get(key, 0) >= 1:
+            # Aynı indikatör kombinasyonunun ikincisini almayalım
+            continue
+
+        ensemble.append(cand)
+        family_count[key] = family_count.get(key, 0) + 1
+
+        if len(ensemble) >= size:
+            break
+
+    return ensemble
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ANA DNA ÜRETİMİ — V3 (3 büyük iyileştirme entegre)
+# ═══════════════════════════════════════════════════════════════════════
 def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
     t0 = time.time()
 
@@ -366,92 +547,150 @@ def build_dna(df: pd.DataFrame, symbol: str = '') -> Dict:
 
     df = df.tail(MIN_BARS).reset_index(drop=True)
 
+    # [1] VOLATILITY-ADAPTIVE — Oynaklık sınıfını belirle
+    vol_class = classify_volatility(df)
+
+    # Adaptif min sinyal: düşük oynaklıkta daha gevşek (zaten az sinyal olur)
+    adaptive_min_sig = 1 if vol_class == 'LOW' else MIN_SIGNALS_TEST
+
+    # Kademe 1 — TEKLİ
     t1 = time.time()
-    singles = search_singles(df)
+    singles = search_singles(df, vol_class=vol_class,
+                             min_sig_test=adaptive_min_sig)
     t_singles = time.time() - t1
 
     valid_singles = [s for s in singles if s.get('valid')]
-    best_single = valid_singles[0] if valid_singles else None
 
     result = {
-        'symbol': symbol, 'mode': 'unknown', 'level': 0,
-        'single': None, 'pair': None, 'triple': None,
-        'chosen': None, 'quality': None,
+        'symbol': symbol,
+        'version': 'v3_enhanced',
+        'volatility_class': vol_class,
+        'adaptive_min_signals': adaptive_min_sig,
+        'mode': 'unknown', 'level': 0,
+        'chosen': None,
+        'ensemble': [],           # [2] Top 3 kombinasyon
+        'robustness': None,       # [3] Fitness landscape sonucu
+        'quality': None,
         'status': 'FAIL', 'reason': '',
         'timings': {'singles_sec': round(t_singles, 2)},
-        'build_time_sec': 0.0,
-        'version': 'v2_calibrated'  # Kalibre edildiğini işaretle
+        'build_time_sec': 0.0
     }
 
-    if best_single is not None:
-        result['single'] = _strip_signal(best_single)
+    if not valid_singles:
+        result['reason'] = 'Hiçbir tekli indikatör geçerli sinyal üretmedi'
+        result['build_time_sec'] = round(time.time() - t0, 2)
+        return result
 
+    # Kademe 2 — İKİLİ
     t2 = time.time()
     pairs = []
-    if valid_singles and len(valid_singles) >= 2:
-        pairs = search_pairs(df, valid_singles)
+    if len(valid_singles) >= 2:
+        pairs = search_pairs(df, valid_singles, min_sig_test=adaptive_min_sig)
     t_pairs = time.time() - t2
     result['timings']['pairs_sec'] = round(t_pairs, 2)
-
     valid_pairs = [p for p in pairs if p.get('valid')]
-    best_pair = valid_pairs[0] if valid_pairs else None
-    if best_pair:
-        result['pair'] = best_pair
 
-    best = None
-    best_src = None
-    best_q = -1
-    if best_single and best_single['combined_quality'] > best_q:
-        best = best_single
-        best_q = best_single['combined_quality']
-        best_src = 'single'
-    if best_pair and best_pair['combined_quality'] > best_q:
-        best = best_pair
-        best_q = best_pair['combined_quality']
-        best_src = 'pair'
-
-    if best_q < MIN_QUALITY_TO_PASS and valid_singles and valid_pairs:
+    # Kademe 3 — ÜÇLÜ (fallback: en iyi ikili < 50 ise)
+    triples = []
+    best_so_far = max(
+        [valid_singles[0]['combined_quality']] +
+        ([valid_pairs[0]['combined_quality']] if valid_pairs else []),
+        default=0
+    )
+    if best_so_far < MIN_QUALITY_TO_PASS and valid_pairs:
         t3 = time.time()
-        triples = search_triples(df, pairs, valid_singles)
+        triples = search_triples(df, pairs, valid_singles,
+                                 min_sig_test=adaptive_min_sig)
         t_triples = time.time() - t3
         result['timings']['triples_sec'] = round(t_triples, 2)
-        valid_triples = [t for t in triples if t.get('valid')]
-        if valid_triples:
-            best_triple = valid_triples[0]
-            result['triple'] = best_triple
-            if best_triple['combined_quality'] > best_q:
-                best = best_triple
-                best_q = best_triple['combined_quality']
-                best_src = 'triple'
+    valid_triples = [t for t in triples if t.get('valid')]
 
-    if best_src == 'single':
-        result['chosen'] = _strip_signal(best)
-        result['level'] = 1
+    # Tüm aday havuzunu birleştir
+    all_candidates = []
+    for s in valid_singles[:10]:
+        s_copy = {k: v for k, v in s.items() if k != 'signal_series'}
+        s_copy['_cat'] = 'single'
+        all_candidates.append(s_copy)
+    for p in valid_pairs[:10]:
+        p_copy = dict(p)
+        p_copy['_cat'] = 'pair'
+        all_candidates.append(p_copy)
+    for t in valid_triples[:5]:
+        t_copy = dict(t)
+        t_copy['_cat'] = 'triple'
+        all_candidates.append(t_copy)
+
+    # Kalite'ye göre sırala
+    all_candidates.sort(key=lambda x: x.get('combined_quality', 0), reverse=True)
+
+    if not all_candidates:
+        result['reason'] = 'Geçerli kombinasyon bulunamadı'
+        result['build_time_sec'] = round(time.time() - t0, 2)
+        return result
+
+    # [2] ENSEMBLE — Top 3 çeşitli kombinasyonu seç
+    ensemble = build_ensemble(all_candidates, size=ENSEMBLE_SIZE)
+    result['ensemble'] = ensemble
+
+    # En iyi kombo 'chosen' olarak seçilir
+    best = all_candidates[0]
+    result['chosen'] = best
+    result['quality'] = best['combined_quality']
+
+    if best['_cat'] == 'single':
         result['mode'] = 'TEKLİ'
-    elif best_src == 'pair':
-        result['chosen'] = best
-        result['level'] = 2
+        result['level'] = 1
+    elif best['_cat'] == 'pair':
         result['mode'] = 'İKİLİ'
-    elif best_src == 'triple':
-        result['chosen'] = best
-        result['level'] = 3
+        result['level'] = 2
+    else:
         result['mode'] = 'ÜÇLÜ'
+        result['level'] = 3
 
-    result['quality'] = best_q if best_q >= 0 else None
+    # [3] FITNESS LANDSCAPE — Robustluk analizi (tekliler için)
+    if best['_cat'] == 'single':
+        robustness = analyze_robustness(valid_singles, best)
+    else:
+        # Çoklu kombolar için basit robustluk: ensemble kalitesinin
+        # aritmetik ortalaması, en iyiye ne kadar yakın?
+        if len(ensemble) >= 2:
+            avg_q = np.mean([e['combined_quality'] for e in ensemble[1:]])
+            ratio = avg_q / best['combined_quality'] if best['combined_quality'] > 0 else 0
+            robustness = {
+                'is_robust': ratio >= 0.7,
+                'neighbor_score': round(ratio, 3),
+                'reason': f'ensemble ortalama oran={ratio:.2f}'
+            }
+        else:
+            robustness = {'is_robust': False, 'neighbor_score': 0.0,
+                          'reason': 'ensemble tek üyeli'}
+    result['robustness'] = robustness
 
-    if best_q >= MIN_QUALITY_TO_PASS:
+    # Karar
+    q = best['combined_quality']
+    is_robust = robustness.get('is_robust', True)
+    ensemble_size_actual = len(ensemble)
+
+    if q >= MIN_QUALITY_STRONG and is_robust and ensemble_size_actual >= 2:
+        result['status'] = 'GÜÇLÜ'
+        result['reason'] = (
+            f'{result["mode"]} · kalite {q:.1f} · robust · '
+            f'{ensemble_size_actual} kombolu ensemble'
+        )
+    elif q >= MIN_QUALITY_TO_PASS:
         result['status'] = 'OK'
-        result['reason'] = f'{result["mode"]} · kalite {best_q:.1f}/100'
-    elif best is not None:
+        result['reason'] = f'{result["mode"]} · kalite {q:.1f}'
+        if not is_robust:
+            result['reason'] += ' · robust değil (lucky shot riski)'
+    elif q >= MIN_QUALITY_WEAK:
         result['status'] = 'ZAYIF'
-        result['reason'] = f'En iyi kombo kalite eşiğinin altında ({best_q:.1f}<{MIN_QUALITY_TO_PASS})'
+        result['reason'] = (
+            f'{result["mode"]} · kalite {q:.1f} · '
+            'eşik üstünde ama ihtiyatlı kullan'
+        )
     else:
         result['status'] = 'FAIL'
-        result['reason'] = 'Geçerli indikatör kombinasyonu bulunamadı'
+        result['reason'] = f'Kalite çok düşük ({q:.1f})'
 
     result['build_time_sec'] = round(time.time() - t0, 2)
     return result
-
-
-def _strip_signal(entry: Dict) -> Dict:
-    return {k: v for k, v in entry.items() if k != 'signal_series'}
