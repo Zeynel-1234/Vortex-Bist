@@ -24,7 +24,9 @@ from lab_sell_v2 import (build_sell_v2_dna, detect_v2_sell_signals,
 from lab_signals import SIGNAL_REGISTRY  # ← AŞAMA 3.3 için
 from lab_store import (save_dna, load_dna, is_cached, delete_dna,
                        list_all_dna, storage_info)
-
+from lab_sell_v2 import (build_sell_v2_dna, detect_v2_sell_signals,
+                          save_sell_v2_dna, load_sell_v2_dna,
+                          list_sell_v2_dna, sell_v2_storage_info)
 app = FastAPI(title="Fraktal Kahin", version="2.5.0")
 
 app.add_middleware(
