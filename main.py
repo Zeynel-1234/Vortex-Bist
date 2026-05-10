@@ -18,6 +18,9 @@ from tv_scanner import fetch_tv_data, fetch_all_timeframes, fetch_tv_bulk
 from backtest import backtest_symbol
 from fraktal import analyze_fraktal
 from lab_optimizer import build_dna
+from lab_sell_v2 import (build_sell_v2_dna, detect_v2_sell_signals,
+                          save_sell_v2_dna, load_sell_v2_dna,
+                          list_sell_v2_dna, sell_v2_storage_info)
 from lab_signals import SIGNAL_REGISTRY  # ← AŞAMA 3.3 için
 from lab_store import (save_dna, load_dna, is_cached, delete_dna,
                        list_all_dna, storage_info)
