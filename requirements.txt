@@ -6,3 +6,4 @@ yfinance
 scipy
 requests
 tradingview-screener
+yfinance>=0.2.40
