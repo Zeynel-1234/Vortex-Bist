@@ -1320,3 +1320,6 @@ def sell_v2_delete_endpoint(symbol: str):
     except Exception:
         pass
     return {'sembol': symbol, 'silindi': deleted}
+  
+from crossover_scanner import router as crossover_router
+app.include_router(crossover_router)
