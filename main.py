@@ -1323,3 +1323,5 @@ def sell_v2_delete_endpoint(symbol: str):
   
 from crossover_scanner import router as crossover_router
 app.include_router(crossover_router)
+from tab_integration import install_crossover_tab
+install_crossover_tab(app)
