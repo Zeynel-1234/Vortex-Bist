@@ -28,7 +28,7 @@ from typing import Dict, Optional, Callable
 import numpy as np
 import pandas as pd
 
-from indicators import (
+from lab_indicators import (
     ema, sma, wma, dema, tema, hull_ma, lsma,
     supertrend, parabolic_sar, ichimoku, kama,
     rsi, stoch_rsi, stochastic, macd, cmo, roc,
