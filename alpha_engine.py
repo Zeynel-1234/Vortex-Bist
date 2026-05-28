@@ -173,16 +173,9 @@ def run_alpha_scan(force: bool = False) -> Dict:
              "mean_rev": w["mean_rev"] + spill * 0.6,
              "momentum": w["momentum"] + spill * 0.4}
 
-    composite_raw = (w["momentum"] * z_mom + w["mean_rev"] * z_mr +
-                     w["low_vol"] * z_lv + w["trend"] * z_tr +
-                     w["quality"] * z_q)
-
-    # KRİTİK: kompoziti tekrar standardize et.
-    # Ağırlıklı toplamın std'si ~0.47 olur (bağımsız faktörler).
-    # Tekrar z-score'lamazsak "Z>1.5 = GÜÇLÜ AL" eşiği ~3 sigma olur,
-    # neredeyse hiç tetiklenmez. Yeniden standardize → eşikler doğru çalışır:
-    # GÜÇLÜ AL ~ top %7, AL ~ sonraki %23, vb.
-    composite = _zscore(composite_raw)
+    composite = (w["momentum"] * z_mom + w["mean_rev"] * z_mr +
+                 w["low_vol"] * z_lv + w["trend"] * z_tr +
+                 w["quality"] * z_q)
 
     order = np.argsort(-composite)
     ranks = np.empty(len(filtered), dtype=int)
