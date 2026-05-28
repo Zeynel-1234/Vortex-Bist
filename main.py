@@ -1329,10 +1329,6 @@ install_crossover_tab(app)
 from alpha_engine import alpha_router
 app.include_router(alpha_router)
 from alpha_tab_integration import install_alpha_tab
-install_alpha_tab(app)
-from alpha_engine import alpha_router
-app.include_router(alpha_router)
-from unified import unified_router
-app.include_router(unified_router)
+install_alpha_tab(app) 
 from alpha_tab_integration import install_alpha_tab
 install_alpha_tab(app)
