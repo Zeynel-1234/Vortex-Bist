@@ -1325,3 +1325,8 @@ from crossover_scanner import router as crossover_router
 app.include_router(crossover_router)
 from tab_integration import install_crossover_tab
 install_crossover_tab(app)
+# ═══ ALPHA ENGINE v3.0 ═══════════════════════════════════════
+from alpha_engine import alpha_router
+app.include_router(alpha_router)
+from alpha_tab_integration import install_alpha_tab
+install_alpha_tab(app)
