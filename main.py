@@ -1332,3 +1332,6 @@ from alpha_tab_integration import install_alpha_tab
 install_alpha_tab(app) 
 from alpha_tab_integration import install_alpha_tab
 install_alpha_tab(app)
+# ═══ V-MOM BACKTEST ═══════════════════════════════════════════
+from vmom_router import vmom_router
+app.include_router(vmom_router)
