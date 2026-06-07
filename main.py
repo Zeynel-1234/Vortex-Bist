@@ -1335,3 +1335,5 @@ install_alpha_tab(app)
 # ═══ V-MOM BACKTEST ═══════════════════════════════════════════
 from vmom_router import vmom_router
 app.include_router(vmom_router)
+from signal_tracker import tracker_router
+app.include_router(tracker_router)
