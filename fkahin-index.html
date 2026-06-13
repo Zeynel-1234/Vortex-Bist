@@ -752,7 +752,7 @@ async function openDetail(sym){
 function closeRep(){G('rep').classList.add('hide');CURRENT_SYM='';CURRENT_NVS_DATA=null;CURRENT_LAB_DATA=null;CURRENT_FRAK_DATA=null;CURRENT_MOMENTUM_DATA=null;}
 function toggleTakip(){if(!CURRENT_SYM)return;if(TAKIP[CURRENT_SYM])delete TAKIP[CURRENT_SYM];else TAKIP[CURRENT_SYM]=1;saveStore();updateTakipBtn();renderSidebar();renderList();}
 function updateTakipBtn(){const b=G('r-tkip');if(!b)return;if(TAKIP[CURRENT_SYM]){b.textContent='★';b.style.borderColor='#e8b84b';b.style.color='#e8b84b';}else{b.textContent='☆';b.style.borderColor='#1a2030';b.style.color='#4b5e78';}}
-function repTV(){if(!CURRENT_SYM)return;window.open(`https://tr.tradingview.com/chart/?symbol=BIST:${CURRENT_SYM}&interval=D`,'_blank');}
+function repTV(){if(!CURRENT_SYM)return;window.open(`https://tr.tradingview.com/chart/?symbol=BIST:${CURRENT_SYM}&interval=W`,'_blank');}
 
 async function repFraktal(){
   if(!CURRENT_SYM)return;
