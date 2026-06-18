@@ -1,3 +1,4 @@
+from rs_engine import install_rs
 from ogren_engine import install_ogren
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -1339,3 +1340,4 @@ app.include_router(vmom_router)
 from signal_tracker import tracker_router
 app.include_router(tracker_router)
 install_ogren(app)
+install_rs(app)
