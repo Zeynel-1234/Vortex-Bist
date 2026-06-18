@@ -1,3 +1,4 @@
+from karar_engine import install_karar
 from trade_plan import install_trade_plan
 from rs_engine import install_rs
 from ogren_engine import install_ogren
@@ -1343,3 +1344,4 @@ app.include_router(tracker_router)
 install_ogren(app)
 install_rs(app)
 install_trade_plan(app)
+install_karar(app)
