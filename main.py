@@ -1402,3 +1402,9 @@ try:
     install_dna_scan(app, fetch_ohlc)  # /dnascan/*
 except Exception as _e:
     print("[main] dna_scan yuklenemedi:", repr(_e))
+
+try:
+    from dna_finger import install_dna_finger
+    install_dna_finger(app, fetch_ohlc)  # /dnafinger/*
+except Exception as _e:
+    print("[main] dna_finger yuklenemedi:", repr(_e))
