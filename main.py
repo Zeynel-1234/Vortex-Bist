@@ -1396,3 +1396,9 @@ try:
     install_dna_lab(app, fetch_ohlc)   # /dnalab/{symbol}
 except Exception as _e:
     print("[main] dna_lab yuklenemedi:", repr(_e))
+
+try:
+    from dna_scan import install_dna_scan
+    install_dna_scan(app, fetch_ohlc)  # /dnascan/*
+except Exception as _e:
+    print("[main] dna_scan yuklenemedi:", repr(_e))
