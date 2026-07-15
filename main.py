@@ -1390,3 +1390,9 @@ try:
     install_hakem(app, fetch_ohlc)         # /hakem/run · /hakem/status
 except Exception as _e:
     print("[main] hakem yuklenemedi:", repr(_e))
+
+try:
+    from dna_lab import install_dna_lab
+    install_dna_lab(app, fetch_ohlc)   # /dnalab/{symbol}
+except Exception as _e:
+    print("[main] dna_lab yuklenemedi:", repr(_e))
