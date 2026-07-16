@@ -1408,3 +1408,9 @@ try:
     install_dna_finger(app, fetch_ohlc)  # /dnafinger/*
 except Exception as _e:
     print("[main] dna_finger yuklenemedi:", repr(_e))
+
+try:
+    from kap_sondaj import install_kap_sondaj
+    install_kap_sondaj(app)  # GET /kapsondaj
+except Exception as _e:
+    print("[main] kap_sondaj yuklenemedi:", repr(_e))
