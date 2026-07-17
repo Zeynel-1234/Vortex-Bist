@@ -1414,3 +1414,9 @@ try:
     install_kap_sondaj(app)  # GET /kapsondaj
 except Exception as _e:
     print("[main] kap_sondaj yuklenemedi:", repr(_e))
+
+try:
+    from kap_iz import install_kap_iz
+    install_kap_iz(app)  # /kapiz/*
+except Exception as _e:
+    print("[main] kap_iz yuklenemedi:", repr(_e))
