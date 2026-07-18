@@ -1420,3 +1420,9 @@ try:
     install_kap_iz(app)  # /kapiz/*
 except Exception as _e:
     print("[main] kap_iz yuklenemedi:", repr(_e))
+
+try:
+    from kap_yon_sondaj import install_kap_yon_sondaj
+    install_kap_yon_sondaj(app)  # GET /kapyonsondaj
+except Exception as _e:
+    print("[main] kap_yon_sondaj yuklenemedi:", repr(_e))
