@@ -1438,3 +1438,9 @@ try:
     install_kap_yon_sondaj3(app)  # GET /kapyonsondaj3
 except Exception as _e:
     print("[main] kap_yon_sondaj3 yuklenemedi:", repr(_e))
+
+try:
+    from kap_yon import install_kap_yon
+    install_kap_yon(app)  # /kapyon/*
+except Exception as _e:
+    print("[main] kap_yon yuklenemedi:", repr(_e))
