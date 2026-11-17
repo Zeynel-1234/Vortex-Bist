@@ -33,6 +33,8 @@ from lab_sell_v2 import (build_sell_v2_dna, detect_v2_sell_signals,
 
 app = FastAPI(title="Fraktal Kahin", version="2.5.0")
 
+from gunluk_model import router as gunluk_router
+app.include_router(gunluk_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
